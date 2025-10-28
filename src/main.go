@@ -3,11 +3,11 @@ package main
 import "log"
 
 func main() {
-	log.Printf("Starting Go-hole %s...\n", AppVersion)
+	log.Printf("Starting Sleuth %s...\n", AppVersion)
 	GetConfig().ReadConfig()
 	GetConfig().Print()
 	initServer()
-	initBlacklistRenewal()
+	//initBlacklistRenewal()
 	listenAndServe()
 }
 
@@ -15,6 +15,7 @@ func initServer() {
 	initLogging()
 	GetUpstreamCache().Init()
 	updateLocalRecords()
-	updateBlacklistRecords()
-	updateWhitelistRecords()
+	//updateBlacklistRecords()
+	//updateWhitelistRecords()
+	WebServer()
 }

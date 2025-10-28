@@ -58,4 +58,4 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ env.CI_VERSION }}
         name: ${{ env.CI_VERSION }}
-        artifacts: "build/go-hole_*"
+        artifacts: "build/sleuth_*"

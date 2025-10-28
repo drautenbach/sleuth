@@ -1,4 +1,6 @@
-# Go-hole
+# Sleuth 
+## (Adapted from go-hole)
+
 [![](https://img.shields.io/github/v/release/virtualzone/go-hole)](https://github.com/virtualzone/go-hole/releases)
 [![](https://img.shields.io/github/release-date/virtualzone/go-hole)](https://github.com/virtualzone/go-hole/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/virtualzone/go-hole)](https://goreportcard.com/report/github.com/virtualzone/go-hole)
@@ -24,7 +26,7 @@ As an additional feature, you can set a list of custom hostnames/domain names to
 
 ## Usage
 1. Create a ```config.yaml``` file. Use the [config.yaml](https://github.com/virtualzone/go-hole/blob/main/config.yaml) in this repository as a template and customize is according to your needs.
-1. Run Go-hole using Docker and mount your previously created ```config.yaml```:
+1. Run Sleuth using Docker and mount your previously created ```config.yaml```:
     ```bash
     docker run \
         --rm \
