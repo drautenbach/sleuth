@@ -1,0 +1,51 @@
+<!doctype html>
+
+<html>
+{{template "header.html"}}
+<body>
+    {{template "menu.html"}}
+
+    <h1>Users</h1>
+
+    <sl-tab-group>
+        <sl-tab slot="nav" panel="local-users">Local Users</sl-tab>
+        <sl-tab slot="nav" panel="remote-users">Remote Users</sl-tab>
+        <sl-tab-panel name="local-users">
+            <h2>Local Users</h2>
+                {{ if .model.LocalUsersError }}
+                <sl-alert variant="danger" open>
+                <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+                <strong>{{.model.LocalUsersError}}</strong><br />
+                </sl-alert>
+                {{ end }}
+                
+            <p>
+                <table border="1" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>Username</th>
+                            <th>Superuser</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .model.LocalUsers}}
+                        <tr>
+                            <td>{{.UID}}</td>
+                            <td>{{.Username}}</td>
+                            <td>{{if .SuperUser}}Yes{{end}}</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </p>
+        </sl-tab-panel> 
+        <sl-tab-panel name="remote-users">
+            <h2>Remote Users</h2>
+            <p>Todo</p>
+        </sl-tab-panel>
+    </sl-tab-group>
+
+</body>
+
+</html>

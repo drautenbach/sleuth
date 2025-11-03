@@ -8,14 +8,16 @@ func main() {
 	GetConfig().Print()
 	initServer()
 	//initBlacklistRenewal()
-	listenAndServe()
+	// start HTTP and DNS servers concurrently and keep main alive
+	go WebServer()
+	//sgo DnsServer()
+	select {}
 }
 
 func initServer() {
 	initLogging()
 	GetUpstreamCache().Init()
-	updateLocalRecords()
+	//updateLocalRecords()
 	//updateBlacklistRecords()
 	//updateWhitelistRecords()
-	WebServer()
 }
