@@ -1,0 +1,20 @@
+{
+  "name": "sleuth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "go run ./cmd/cloudshell"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@shoelace-style/shoelace": "^2.20.1",
+    "xterm": "^4.11.0",
+    "xterm-addon-attach": "^0.6.0",
+    "xterm-addon-fit": "^0.5.0",
+    "xterm-addon-serialize": "^0.5.0",
+    "xterm-addon-unicode11": "^0.2.0",
+    "xterm-addon-web-links": "^0.4.0"
+  }
+}

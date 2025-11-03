@@ -1,23 +1,23 @@
 package main
 
-import "log"
+import "sleuth/internal/log"
 
 func main() {
-	log.Printf("Starting Sleuth %s...\n", AppVersion)
+	log.Info("Starting Sleuth %s...\n", AppVersion)
 	GetConfig().ReadConfig()
 	GetConfig().Print()
 	initServer()
-	//initBlacklistRenewal()
+	initBlacklistRenewal()
 	// start HTTP and DNS servers concurrently and keep main alive
 	go WebServer()
-	//sgo DnsServer()
+	go DnsServer()
 	select {}
 }
 
 func initServer() {
 	initLogging()
 	GetUpstreamCache().Init()
-	//updateLocalRecords()
-	//updateBlacklistRecords()
-	//updateWhitelistRecords()
+	updateLocalRecords()
+	updateBlacklistRecords()
+	updateWhitelistRecords()
 }

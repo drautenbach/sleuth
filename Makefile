@@ -18,3 +18,8 @@ linux_arm64:
 
 linux_arm:
 	env GOOS=linux GOARCH=arm go build -ldflags="-w -s" -o build/go-hole_linux_arm_${VERSION} src/*.go
+
+
+init:
+	npm install
+	go mod vendor

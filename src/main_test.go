@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var config = `
+var configuration = `
 listen: 0.0.0.0:5300
 upstream:
   - 8.8.8.8:53
@@ -32,7 +32,7 @@ local:
 `
 
 func TestMain(m *testing.M) {
-	GetConfig().ReadConfigData([]byte(config))
+	GetConfig().ReadConfigData([]byte(configuration))
 	initServer()
 	code := m.Run()
 	os.Exit(code)

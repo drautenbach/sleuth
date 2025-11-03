@@ -133,5 +133,6 @@ func WebServer() {
 	// TTL of 10 minutes for demonstration; set to 0 for indefinite
 	portal := NewPortal(10 * time.Minute)
 	wcUsersInit(portal)
+	webShellInit(portal)
 	portal.router.Run(":8080")
 }
