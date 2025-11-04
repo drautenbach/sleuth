@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sleuth/internal/db"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ type Portal struct {
 	mu      sync.RWMutex
 	ttl     time.Duration
 	router  *gin.Engine
+	db      *db.Db
 }
 
 type Credentials struct {
@@ -102,9 +104,14 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		var action = c.Request.FormValue("sleuth_action")
 		switch action {
 		case "login":
-			p.allow(ip)
-			c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-			return
+			u := p.db.GetUser(c.Request.FormValue("username"))
+			if u != nil {
+				if u.Password == c.Request.FormValue("password") {
+					p.allow(ip)
+					c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+					return
+				}
+			}
 		}
 
 	}
@@ -129,10 +136,11 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func WebServer() {
+func WebServer(database *db.Db) {
 	// TTL of 10 minutes for demonstration; set to 0 for indefinite
 	portal := NewPortal(10 * time.Minute)
+	portal.db = database
 	wcUsersInit(portal)
 	webShellInit(portal)
-	portal.router.Run(":8080")
+	portal.router.Run(":80")
 }
