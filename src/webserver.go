@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"os"
@@ -34,6 +36,20 @@ func NewPortal(ttl time.Duration) *Portal {
 		ttl:     ttl,
 		router:  gin.Default(),
 	}
+
+	// register template functions before loading templates
+	p.router.SetFuncMap(template.FuncMap{
+		"title": func() template.HTML {
+			return template.HTML(fmt.Sprintf("<title>%s</title>", "Sleuth"))
+		},
+		"menu": func(c *gin.Context, href string, title string) template.HTML {
+			class := ""
+			if c != nil && c.Request != nil && c.Request.URL.Path == href {
+				class = "class=\"active-link\""
+			}
+			return template.HTML(fmt.Sprintf("<a href=\"%s\"%s>%s</a>", href, class, title))
+		},
+	})
 
 	p.router.Use(p.interceptHandler)
 	p.router.Static("/lib", "www/lib")
@@ -74,13 +90,34 @@ func (p *Portal) allow(ip string) {
 }
 
 func (p *Portal) serveTemplate(c *gin.Context) {
-	path := strings.TrimPrefix(c.Request.URL.Path, "/")
+	p.HTML(c, strings.TrimPrefix(c.Request.URL.Path, "/"), nil)
+}
+
+func (p *Portal) HTML(c *gin.Context, path string, obj any) {
+	// create a response map and merge any provided map-like object into it
+	data := gin.H{}
 	if path == "" {
 		path = "index"
 	}
-	c.HTML(http.StatusOK, path+".html", gin.H{
-		"title": "Sleuth",
-	})
+
+	if obj != nil {
+		switch v := obj.(type) {
+		case gin.H:
+			for k, val := range v {
+				data[k] = val
+			}
+		case map[string]any:
+			for k, val := range v {
+				data[k] = val
+			}
+		}
+	}
+
+	// set common fields
+	data["context"] = c
+	//data["path"] = path
+
+	c.HTML(http.StatusOK, path+".html", data)
 }
 
 // ServeHTTP is middleware that checks the client IP and redirects
@@ -116,9 +153,8 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 
 	}
 
-	c.HTML(http.StatusOK, "login.html", gin.H{
-		"title": "Sleuth",
-		"next":  c.Query("next"),
+	p.HTML(c, "login", gin.H{
+		"next": c.Query("next"),
 	})
 	c.Abort()
 }
@@ -140,7 +176,10 @@ func WebServer(database *db.Db) {
 	// TTL of 10 minutes for demonstration; set to 0 for indefinite
 	portal := NewPortal(10 * time.Minute)
 	portal.db = database
+
 	wcUsersInit(portal)
+	wcProfileUsersInit(portal)
 	webShellInit(portal)
+
 	portal.router.Run(":80")
 }

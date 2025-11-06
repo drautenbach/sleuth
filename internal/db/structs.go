@@ -4,6 +4,7 @@ import "time"
 
 type UserProfile struct {
 	UserName    string
+	FullName    string
 	Email       string
 	Password    string
 	Enabled     bool

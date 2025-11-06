@@ -31,8 +31,7 @@ func wcUsersInit(p *Portal) *wcUsers {
 	p.router.GET("/users", func(c *gin.Context) {
 
 		LocalUsers, LocalUsersError := u.GetLocalUsers()
-		c.HTML(200, "users.html", gin.H{
-			"title": "Sleuth - Users",
+		p.HTML(c, "users", gin.H{
 			"model": gin.H{
 				"LocalUsers":      LocalUsers,
 				"LocalUsersError": LocalUsersError,

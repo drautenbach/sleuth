@@ -4,32 +4,8 @@
         <div class="sidebar-version">0.1</div>
     </header>
 
-    <button class="search-box" type="button" title="Press / to search" aria-label="Search" data-plugin="search">
-        <sl-icon name="search" aria-hidden="true" library="default"></sl-icon>
-        <span>Search</span>
-    </button>
-
-    <nav>
-        <ul>
-        <li>
-            <h2>Getting Started</h2>
-            <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/start/behaviour">Behaviour</a></li>
-            <li><a href="/shell">Terminal</a></li>
-            </ul>
-        </li>
-        <li>
-            <h2>Setup</h2>
-            <ul>
-            <li><a href="/users">Users</a></li>
-            <li><a href="/setup/network">Network</a></li>
-            <li><a href="/setup/dns">DNS</a></li>
-            <li><a href="/setup/reverseproxy">Reverse Proxy</a></li>
-            </ul>
-        </li>
-        </ul>
-    </nav>
-    </aside>
+    {{template "template-menu.html" .}}
+    
+</aside>
 
 
