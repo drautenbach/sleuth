@@ -23,7 +23,9 @@
             { "name": "Users", "href": "/profiles/users"
             , "items": [ 
                 {"name": "New", "href": "/profiles/users/new"},
-                {"name": "Edit", "href": "/profiles/user/"} 
+                {"name": "Edit", "href": "/profiles/user/"},
+                {"name": "Delete", "href": "/profiles/users/delete"}, 
+                {"name": "Reset Password", "href": "/profiles/users/resetpassword"} 
             ] }
         ]
     }

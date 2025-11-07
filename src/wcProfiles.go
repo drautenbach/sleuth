@@ -52,7 +52,6 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	// use a named param for the username (no wildcard with empty name)
 	p.router.GET("/profiles/user/:username", func(c *gin.Context) {
 		// get username from the route parameter
 		username := c.Param("username")
@@ -70,6 +69,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		var u = &db.UserProfile{
 			UserName: c.Param("username"),
 			FullName: c.PostForm("fullname"),
+			EmailAddress: c.PostForm("emailaddress"),
 		}
 		var err = p.db.UpdateUser(u)
 		if err == nil {
@@ -86,6 +86,50 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			})
 		}
 	})
+
+	p.router.GET("/profiles/users/delete/:username", func(c *gin.Context) {
+		// get username from the route parameter
+		User := p.db.GetUser(c.Param("username"))
+		p.HTML(c, "profiles_user_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete User",
+			"model": gin.H{
+				"User": User,
+			},
+		})
+	})
+
+	p.router.POST("/profiles/users/delete/:username", func(c *gin.Context) {
+		// get username from the route parameter
+		err := p.db.DeleteUser(c.Param("username"))
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/profiles/users")
+			c.Abort()
+		} else {
+			User := p.db.GetUser(c.Param("username"))
+			p.HTML(c, "profiles_user_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete User",
+				"error":  err.Error(),
+				"model": gin.H{
+					"User": User,
+				},
+			})
+		}
+	})
+
+	p.router.GET("/profiles/users/reset/:username", func(c *gin.Context) {
+		// get username from the route parameter
+		User := p.db.GetUser(c.Param("username"))
+		p.HTML(c, "profiles_user_reset", gin.H{
+			"action": "reset",
+			"title":  "Reset User Password",
+			"model": gin.H{
+				"User": User,
+			},
+		})
+	})
+
 
 	return profiles
 }

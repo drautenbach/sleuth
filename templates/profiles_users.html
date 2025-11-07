@@ -1,18 +1,18 @@
 {{template "template-start.html" .}}
 
-    <span id="right"><sl-icon-button name="person-plus" href="users/new"></sl-icon></span>
+    <span class="right"><sl-icon-button name="person-plus" href="users/new"></sl-icon></span>
     <h2>Users</h2>
-    <table border="1" cellspacing="0">
+    <table border="1" cellspacing="0" cellpadding="0">
         <thead>
             <tr>
-                <th>Username</th>
+                <th>User</th>
                 <th>Full Name</th>
             </tr>
         </thead>
         <tbody>
             {{range .model.Users}}
             <tr>
-                <td><a href="user/{{.UserName}}">{{.UserName}}</a></td>
+                <td><a href="user/{{.UserName}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{.UserName}}</td>
                 <td>{{.FullName}}</td>                   
             </tr>
             {{end}}

@@ -63,11 +63,11 @@ func (d *Db) GetUsers() []UserProfile {
 	return users
 }
 
-func (d *Db) CreateUser(u *UserProfile) error {
+func (d *Db) UpdateUser(u *UserProfile) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
 		user, err := txn.Get([]byte("user:" + u.UserName))
-		if user != nil {
-			return fmt.Errorf("User %s already exists", u.UserName)
+		if user == nil {
+			return fmt.Errorf("user %s does not exists", u.UserName)
 		}
 
 		key := "user:" + u.UserName
@@ -83,30 +83,38 @@ func (d *Db) CreateUser(u *UserProfile) error {
 	})
 }
 
-func (d *Db) UpdateUser(u *UserProfile) error {
+func (d *Db) CreateUser(u *UserProfile) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		user, err := txn.Get([]byte("user:" + u.UserName))
+		if user != nil {
+			return fmt.Errorf("user %s already exists", u.UserName)
+		}
+
 		key := "user:" + u.UserName
-
-		var up UserProfile
-		item, err := txn.Get([]byte("user:" + u.UserName))
-		if err != nil {
-			return err
-		}
-		if item == nil {
-			return fmt.Errorf("user %s does not exist", u.UserName)
-		}
-		if err := item.Value(func(val []byte) error {
-			return json.Unmarshal(val, &up)
-		}); err != nil {
-			return err
-		}
-		u.Password = up.Password
-
 		val, err := json.Marshal(u)
 		if err != nil {
 			return err
 		}
 		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) DeleteUser(userName string) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		key := "user:" + userName
+
+		item, err := txn.Get([]byte("user:" + userName))
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			return fmt.Errorf("user %s does not exist", userName)
+		}
+		err = txn.Delete([]byte(key))
 		if err != nil {
 			panic(err)
 		}

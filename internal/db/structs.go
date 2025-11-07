@@ -3,12 +3,12 @@ package db
 import "time"
 
 type UserProfile struct {
-	UserName    string
-	FullName    string
-	Email       string
-	Password    string
-	Enabled     bool
-	DateDeleted *time.Time
+	UserName    	string
+	FullName    	string
+	EmailAddress	string
+	Password    	string
+	Enabled     	bool
+	DateDeleted 	*time.Time
 }
 
 type SystemProfile struct {

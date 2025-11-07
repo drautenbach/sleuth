@@ -5,18 +5,30 @@
             <h3>{{.title}}</h3>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" name="username" value="{{.model.User.UserName}}" {{if eq $.action "create"}}required{{else}}readonly{{end}}>
+                    <input type="text" name="username" value="{{.model.User.UserName}}" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
                 </div>
                 <div class="form-group">
-                    <label for="FullName">Full name</label>
-                    <input name="fullname" value="{{.model.User.FullName}}" >
+                    <label for="fullname">Full name</label>
+                    <input name="fullname" value="{{.model.User.FullName}}" />
                 </div>
+                <div class="form-group">
+                    <label for="emailaddress">Email address</label>
+                    <input name="emailaddress" type="email" value="{{.model.User.EmailAddress}}" />
+                </div>
+
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
-                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}">{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
-                    <sl-button variant="default" href="../users" outline>Cancel</sl-button>
-                </div>
+                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}"><sl-icon name="save" slot="prefix"></sl-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
+                    <sl-button variant="default" href="../users" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>
+
+                    {{if eq $.action "edit"}}
+                        <span class="right">
+                            <sl-button href="../users/reset/{{.model.User.UserName}}" variant="warning" outline><sl-icon name="key" slot="prefix"></sl-icon>Reset Password</sl-button>
+                            <sl-button href="../users/delete/{{.model.User.UserName}}" variant="danger" outline><sl-icon name="person-dash" slot="prefix"></sl-icon>Delete</sl-button>
+                        </span>
+                    {{end}}
+                </div>                    
         </div>
     </form>
 

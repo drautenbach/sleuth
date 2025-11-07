@@ -371,14 +371,16 @@ table tr {
 }
 
 table th {
+  background-color: var(--sl-color-neutral-100);
   font-weight: var(--sl-font-weight-semibold);
   text-align: left;
+  font-weight: bold;
 }
 
 table td,
 table th {
   line-height: var(--sl-line-height-normal);
-  padding: 1rem 1rem;
+  padding: 0.2rem 0.2rem;
 }
 
 table th p:first-child,
@@ -1510,7 +1512,7 @@ body[data-page^='/tokens/'] .table-wrapper td:first-child code {
     font-style: italic
 }
 
-#right {
+.right {
   float:right
 }
 

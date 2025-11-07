@@ -1,0 +1,17 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                <p>Are you sure you want to reset user password for <strong>{{.model.User.UserName}}</strong>?</p>
+
+                <p><label class="error-message">{{.error}}</label></p>
+                <div class="button-group">
+                    <sl-button variant="warning" type="submit" name="action" value="reset"><sl-icon name="key" slot="prefix"></sl-icon>Reset</sl-button>
+                    <sl-button variant="default" href="../../user/{{.model.User.UserName}}" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>
+                </div>
+        </div>
+    </form>
+
+
+{{template "template-end.html" .}}
