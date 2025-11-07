@@ -1,24 +1,23 @@
 {{template "template-start.html" .}}
 
-    <h3>Users</h3>
-    <p>
-        <table border="1" cellspacing="0">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Full Name</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .model.Users}}
-                <tr>
-                    <td>{{.UserName}}</td>
-                    <td>{{.FullName}}</td>                   
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-    </p>
+    <span id="right"><sl-icon-button name="person-plus" href="users/new"></sl-icon></span>
+    <h2>Users</h2>
+    <table border="1" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Full Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Users}}
+            <tr>
+                <td><a href="user/{{.UserName}}">{{.UserName}}</a></td>
+                <td>{{.FullName}}</td>                   
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
 
 
 {{template "template-end.html" .}}

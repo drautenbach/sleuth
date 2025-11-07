@@ -1,0 +1,31 @@
+[
+    {
+        "name": "Start",
+        "title": "Getting Started",
+        "href": "/",
+        "items": [
+            { "name": "Default Settings", "href": "/settings"},
+            { "name": "Terminal", "href": "/shell"}
+        ]
+    },
+    {   "name": "Settings",
+        "href": "/settings",
+        "items": [
+             { "name": "Users", "href": "/users" },
+             { "name": "Network", "href": "/setup/network" },
+             { "name": "DNS", "href": "/setup/dns" },
+             { "name": "Reverse proxy", "href": "/setup/proxy" }
+        ]
+    },
+    {
+        "name": "Profiles",
+        "items": [
+            { "name": "Users", "href": "/profiles/users"
+            , "items": [ 
+                {"name": "New", "href": "/profiles/users/new"},
+                {"name": "Edit", "href": "/profiles/user/"} 
+            ] }
+        ]
+    }
+
+]

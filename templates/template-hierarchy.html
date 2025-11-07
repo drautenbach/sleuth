@@ -1,0 +1,9 @@
+{{if (gt (len .nav.hierarchy) 0)}} 
+        <sl-breadcrumb>  
+        {{range .nav.hierarchy}}
+                <sl-breadcrumb-item {{if .href}}href="{{.href}}"{{end}}>
+                    {{if .title}}{{.title}}{{else}}{{.name}}{{end}}
+                </sl-breadcrumb-item>
+        {{end}}
+    </sl-breadcrumb>
+{{end}}

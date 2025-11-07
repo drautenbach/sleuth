@@ -1,0 +1,24 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" name="username" value="{{.model.User.UserName}}" {{if eq $.action "create"}}required{{else}}readonly{{end}}>
+                </div>
+                <div class="form-group">
+                    <label for="FullName">Full name</label>
+                    <input name="fullname" value="{{.model.User.FullName}}" >
+                </div>
+                
+                <p><label class="error-message">{{.error}}</label></p>
+                <div class="button-group">
+                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}">{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
+                    <sl-button variant="default" href="../users" outline>Cancel</sl-button>
+                </div>
+        </div>
+    </form>
+
+
+{{template "template-end.html" .}}

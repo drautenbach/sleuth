@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net"
@@ -42,12 +43,8 @@ func NewPortal(ttl time.Duration) *Portal {
 		"title": func() template.HTML {
 			return template.HTML(fmt.Sprintf("<title>%s</title>", "Sleuth"))
 		},
-		"menu": func(c *gin.Context, href string, title string) template.HTML {
-			class := ""
-			if c != nil && c.Request != nil && c.Request.URL.Path == href {
-				class = "class=\"active-link\""
-			}
-			return template.HTML(fmt.Sprintf("<a href=\"%s\"%s>%s</a>", href, class, title))
+		"array": func(values ...interface{}) []interface{} {
+			return values
 		},
 	})
 
@@ -115,9 +112,64 @@ func (p *Portal) HTML(c *gin.Context, path string, obj any) {
 
 	// set common fields
 	data["context"] = c
+	data["nav"] = p.loadMenu(c)
 	//data["path"] = path
 
 	c.HTML(http.StatusOK, path+".html", data)
+}
+
+func (p *Portal) loadMenu(c *gin.Context) gin.H {
+	data, err := os.ReadFile("templates/template-menu.json")
+	if err != nil {
+		return nil
+	}
+	var menu []map[string]interface{}
+	if err := json.Unmarshal(data, &menu); err != nil {
+		return nil
+	}
+
+	var markActive func(items map[string]interface{}) bool
+	hierarchy := []map[string]interface{}{}
+	markActive = func(item map[string]interface{}) bool {
+		isActive := false
+
+		// Check current item's href
+		if href, ok := item["href"].(string); ok {
+			if c != nil && c.Request != nil {
+				if c.Request.URL.Path == href || (href != "/" && strings.HasPrefix(c.Request.URL.Path+"/", href)) {
+					item["active"] = true
+					isActive = true
+				}
+			}
+		}
+
+		// Check items array
+		if items, ok := item["items"].([]interface{}); ok {
+			for _, subItem := range items {
+				if mapItem, ok := subItem.(map[string]interface{}); ok {
+					if markActive(mapItem) {
+						isActive = true
+					}
+				}
+			}
+		}
+
+		if isActive {
+			hierarchy = append([]map[string]interface{}{item}, hierarchy...)
+			item["active"] = true
+		}
+		return isActive
+	}
+
+	// Process the menu
+	for _, item := range menu {
+		markActive(item)
+	}
+
+	return gin.H{
+		"hierarchy": hierarchy,
+		"menu":      menu,
+	}
 }
 
 // ServeHTTP is middleware that checks the client IP and redirects
@@ -178,7 +230,7 @@ func WebServer(database *db.Db) {
 	portal.db = database
 
 	wcUsersInit(portal)
-	wcProfileUsersInit(portal)
+	wcProfilesInit(portal)
 	webShellInit(portal)
 
 	portal.router.Run(":80")

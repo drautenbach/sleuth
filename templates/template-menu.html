@@ -5,33 +5,19 @@
 
 <nav>
     <ul>
-    <li>
-        <h2>Getting Started</h2>
-        <ul>
-            <li>{{ menu .context "/" "Home" }}</li>
-            <li><a href="/settings">Default Settings</a></li>
-            <li>{{ menu .context "/shell" "Terminal" }}</li>
-        </ul>
-    </li>
-    <li>
-        <h2>Setup</h2>
-        <ul>
-            <li>{{ menu .context "/users" "Users" }}</li>
-            <li><a href="/setup/network">Network</a></li>
-            <li><a href="/setup/dns">DNS</a></li>
-            <li><a href="/setup/reverseproxy">Reverse Proxy</a></li>
-        </ul>
-    </li>
-    <li>
-        <h2>Profiles</h2>
-        <ul>
-            <li>{{ menu .context "/profiles/users" "Users" }}</li>
-        </ul>
-    </li>
+    {{range .nav.menu}}
+        <li>
+            <h2 {{if .active}}class="active-section"{{end}}>{{if .href}} <a href="{{.href}}">{{if .title}}{{.title}}{{else}}{{.name}}{{end}}</a> {{else}} {{if .title}}{{.title}}{{else}}{{.name}}{{end}} {{end}}</h2>
+            <ul>
+                {{range .items}}
+                    <li><a href="{{.href}}" {{if .active}}class="active-link"{{end}}>{{.name}}</a></li>
+                {{end}}
+            </ul>
+        </li>
+    {{end}}
     </ul>
     <br/>
     <ul>
         <li><a href="/logout">Log out</a></li>
     </ul>
-    
 </nav>

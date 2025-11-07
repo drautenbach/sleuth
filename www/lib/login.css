@@ -5,7 +5,7 @@
 }
 
 .login-dialog {
-    background-color: #fff;
+    background-color: var(--sl-color-neutral-100);
     padding: 20px 40px;
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -36,4 +36,5 @@
     border-radius: 5px;
     box-sizing: border-box; /* Ensures padding doesn't affect width */
     font-size: 16px;
+
 }

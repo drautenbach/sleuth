@@ -628,7 +628,7 @@ pre:hover .copy-code-button,
   background: var(--sl-color-neutral-100);
   border-radius: var(--docs-border-radius);
   padding: 1rem;
-  margin-left: 1rem;
+  margin-left: 0.5rem;
 }
 
 .content aside > :first-child {
@@ -701,7 +701,7 @@ pre:hover .copy-code-button,
   bottom: 0;
   z-index: 20;
   width: var(--docs-sidebar-width);
-  background-color: var(--docs-background-color);
+  background-color: var(--sl-color-neutral-100);
   border-right: solid var(--docs-border-width) var(--docs-border-color);
   border-radius: 0;
   padding: 2rem;
@@ -1473,10 +1473,6 @@ body[data-page^='/tokens/'] .table-wrapper td:first-child code {
   margin-left: 140px;
 }
 
-main {
-  margin-top: 70px;
-}
-
 @media screen and (max-width: 1650px) {
   .ks-banner,
   .ks-banner.with-toc {
@@ -1485,9 +1481,6 @@ main {
     left: calc(50% - 270px);
   }
 
-  main {
-    margin-top: 0px;
-  }
 }
 
 @media screen and (max-width: 900px) {
@@ -1517,3 +1510,34 @@ main {
     font-style: italic
 }
 
+#right {
+  float:right
+}
+
+
+form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #666;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box; /* Ensures padding doesn't affect width */
+    font-size: 16px;
+}
+
+.active-section {
+  font-weight: bold !important;;
+}
+
+.error-message {
+  color: red;
+}
