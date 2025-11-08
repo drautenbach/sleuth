@@ -7,8 +7,9 @@ type UserProfile struct {
 	FullName    	string
 	EmailAddress	string
 	Password    	string
-	Enabled     	bool
-	DateDeleted 	*time.Time
+	PasswordReset	time.Time
+	Enabled	     	bool
+	Admin	     	bool
 }
 
 type SystemProfile struct {

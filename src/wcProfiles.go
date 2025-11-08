@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"time"
 	"net/http"
 	"sleuth/internal/db"
 
@@ -35,6 +37,10 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		var u = &db.UserProfile{
 			UserName: c.PostForm("username"),
 			FullName: c.PostForm("fullname"),
+			EmailAddress: c.PostForm("emailaddress"),
+			PasswordReset: time.Now().Add(24 * time.Hour),
+			Enabled: true,
+			Admin: c.PostForm("admin") == "on",
 		}
 		var err = p.db.CreateUser(u)
 		if err == nil {
@@ -66,12 +72,18 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 	})
 
 	p.router.POST("/profiles/user/:username", func(c *gin.Context) {
-		var u = &db.UserProfile{
-			UserName: c.Param("username"),
-			FullName: c.PostForm("fullname"),
-			EmailAddress: c.PostForm("emailaddress"),
+		var u = p.db.GetUser(c.Param("username"))
+		var err error
+		if (u == nil) {
+			err = fmt.Errorf("user %s does not exist", c.Param("username"))
+		} else {
+			u.FullName = c.PostForm("fullname")
+			u.EmailAddress = c.PostForm("emailaddress")
+			u.Enabled = c.PostForm("enabled") == "on"
+			u.Admin = c.PostForm("admin") == "on"
+			p.db.UpdateUser(u)
 		}
-		var err = p.db.UpdateUser(u)
+	
 		if err == nil {
 			c.Redirect(http.StatusSeeOther, "/profiles/users")
 			c.Abort()
@@ -128,6 +140,30 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 				"User": User,
 			},
 		})
+	})
+
+	p.router.POST("/profiles/users/reset/:username", func(c *gin.Context) {
+		var u = p.db.GetUser(c.Param("username"))
+		var err error
+		if (u == nil) {
+			err = fmt.Errorf("user %s does not exist", c.Param("username"))
+		} else {
+			u.PasswordReset = time.Now().Add(10 * time.Minute)
+			p.db.UpdateUser(u)
+		}
+	
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/profiles/users")
+			c.Abort()
+		} else {
+			p.HTML(c, "profiles_user_reset", gin.H{
+				"action": "reset",
+				"title":  "Reset User Password",
+				"model": gin.H{
+					"User": u,
+				},
+			})
+		}
 	})
 
 

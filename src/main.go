@@ -13,6 +13,7 @@ func main() {
 			UserName: "admin",
 			Password: "admin",
 			Enabled:  true,
+			Admin:    true,
 		}
 		d.CreateUser(up)
 	}

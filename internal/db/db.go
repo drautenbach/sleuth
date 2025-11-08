@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sleuth/internal/log"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 )
@@ -69,6 +70,28 @@ func (d *Db) UpdateUser(u *UserProfile) error {
 		if user == nil {
 			return fmt.Errorf("user %s does not exists", u.UserName)
 		}
+
+		key := "user:" + u.UserName
+		val, err := json.Marshal(u)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) SetPassword(username string, password string) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		u := d.GetUser(username)
+		if u == nil {
+			return fmt.Errorf("user %s does not exists", username)
+		}
+		u.Password = password
+		u.PasswordReset = time.Time{}
 
 		key := "user:" + u.UserName
 		val, err := json.Marshal(u)

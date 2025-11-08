@@ -189,17 +189,50 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		return
 	}
 
+	var err error
 	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
 		var action = c.Request.FormValue("sleuth_action")
 		switch action {
+		case "reset_password":
+			u := p.db.GetUser(c.Request.FormValue("username"))
+			if u != nil {
+				if (u.PasswordReset.Before(time.Now())) {
+					newPassword := c.Request.FormValue("new_password")
+					confirmPassword := c.Request.FormValue("confirm_password")
+					if newPassword == confirmPassword {
+						p.db.SetPassword(u.UserName, newPassword)
+						p.allow(ip)
+						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+						return
+					} else {
+						err = fmt.Errorf("passwords do not match")
+					}
+				} else {
+					err = fmt.Errorf("password reset link has expired")
+				}
+			} else {
+				err = fmt.Errorf("user %s does not exist", c.Request.FormValue("username"))
+			}
 		case "login":
 			u := p.db.GetUser(c.Request.FormValue("username"))
 			if u != nil {
-				if u.Password == c.Request.FormValue("password") {
+				if u.PasswordReset.Before(time.Now()) {
+					p.HTML(c, "reset_password", gin.H{
+						"username": c.Request.FormValue("username"),
+						"next": c.Query("next"),
+						"error": err,
+					})
+					c.Abort()
+					return
+				} else if u.Password == c.Request.FormValue("password") {
 					p.allow(ip)
 					c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
 					return
+				} else {
+					err = fmt.Errorf("invalid username or password")
 				}
+			} else {
+				err = fmt.Errorf("invalid username or password")
 			}
 		}
 
@@ -207,6 +240,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 
 	p.HTML(c, "login", gin.H{
 		"next": c.Query("next"),
+		"error": err,
 	})
 	c.Abort()
 }

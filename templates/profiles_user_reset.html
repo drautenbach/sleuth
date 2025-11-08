@@ -5,7 +5,14 @@
             <h3>{{.title}}</h3>
                 <p>Are you sure you want to reset user password for <strong>{{.model.User.UserName}}</strong>?</p>
 
-                <p><label class="error-message">{{.error}}</label></p>
+                <p><label class="error-message">{{.error}}</label>
+                <sl-alert variant="primary" open>
+                    <sl-icon slot="icon" name="info-circle"></sl-icon>
+                    <strong>User will be prompted for a new password upon next logon</strong><br/>
+                    Reset will expire within 10 minutes.
+                </sl-alert>
+                </p>
+
                 <div class="button-group">
                     <sl-button variant="warning" type="submit" name="action" value="reset"><sl-icon name="key" slot="prefix"></sl-icon>Reset</sl-button>
                     <sl-button variant="default" href="../../user/{{.model.User.UserName}}" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>

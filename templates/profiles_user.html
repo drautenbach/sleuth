@@ -5,17 +5,24 @@
             <h3>{{.title}}</h3>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" name="username" value="{{.model.User.UserName}}" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
+                    <input type="text" name="username" value="{{.model.User.UserName}}" onkeyup="event.srcElement.value = event.srcElement.value.toLowerCase()" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
                 </div>
                 <div class="form-group">
                     <label for="fullname">Full name</label>
-                    <input name="fullname" value="{{.model.User.FullName}}" />
+                    <sl-input name="fullname" value="{{.model.User.FullName}}" ></sl-input>
                 </div>
                 <div class="form-group">
                     <label for="emailaddress">Email address</label>
-                    <input name="emailaddress" type="email" value="{{.model.User.EmailAddress}}" />
+                    <sl-input name="emailaddress" type="email" value="{{.model.User.EmailAddress}}"></sl-input>
                 </div>
-
+                <div class="form-group">
+                    <sl-switch name="admin"{{if .model.User.Admin}} checked{{end}}>Allow admin portal access</sl-switch>
+                </div>
+                {{if eq $.action "edit"}}
+                <div class="form-group">
+                    <sl-switch name="enabled"{{if or .model.User.Enabled (eq $.action "create")}} checked{{end}}>Enabled</sl-switch>
+                </div>
+                {{end}}
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
