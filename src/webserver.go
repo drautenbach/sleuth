@@ -196,7 +196,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		case "reset_password":
 			u := p.db.GetUser(c.Request.FormValue("username"))
 			if u != nil {
-				if (u.PasswordReset.Before(time.Now())) {
+				if u.PasswordReset.After(time.Now()) {
 					newPassword := c.Request.FormValue("new_password")
 					confirmPassword := c.Request.FormValue("confirm_password")
 					if newPassword == confirmPassword {
@@ -216,11 +216,11 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		case "login":
 			u := p.db.GetUser(c.Request.FormValue("username"))
 			if u != nil {
-				if u.PasswordReset.Before(time.Now()) {
+				if u.PasswordReset.After(time.Now()) {
 					p.HTML(c, "reset_password", gin.H{
 						"username": c.Request.FormValue("username"),
-						"next": c.Query("next"),
-						"error": err,
+						"next":     c.Query("next"),
+						"error":    err,
 					})
 					c.Abort()
 					return
@@ -239,7 +239,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 	}
 
 	p.HTML(c, "login", gin.H{
-		"next": c.Query("next"),
+		"next":  c.Query("next"),
 		"error": err,
 	})
 	c.Abort()
@@ -260,9 +260,10 @@ func clientIP(r *http.Request) string {
 
 func WebServer(database *db.Db) {
 	// TTL of 10 minutes for demonstration; set to 0 for indefinite
-	portal := NewPortal(10 * time.Minute)
+	portal := NewPortal(60 * time.Minute)
 	portal.db = database
 
+	wcSetupInit(portal)
 	wcUsersInit(portal)
 	wcProfilesInit(portal)
 	webShellInit(portal)

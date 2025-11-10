@@ -22,5 +22,11 @@
                     <sl-button variant="primary" type="submit" name="sleuth_action" value="login">Login</sl-button>
                 </div>
         </div>
+                {{if .error}}
+                    <sl-alert variant="danger" open>
+                        {{.error}}
+                    </sl-alert>
+                {{end}}
+
             </form>
     </body>

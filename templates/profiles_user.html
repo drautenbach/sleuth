@@ -16,7 +16,12 @@
                     <sl-input name="emailaddress" type="email" value="{{.model.User.EmailAddress}}"></sl-input>
                 </div>
                 <div class="form-group">
-                    <sl-switch name="admin"{{if .model.User.Admin}} checked{{end}}>Allow admin portal access</sl-switch>
+                    <label for="role">Role</label>
+                    <sl-select name="role" value="{{.model.User.Role}}">
+                        {{range .model.Roles}}
+                            <sl-option value="{{.RoleName}}">{{.RoleName}}</sl-option>
+                        {{end}}
+                    <sl-select>
                 </div>
                 {{if eq $.action "edit"}}
                 <div class="form-group">
@@ -38,6 +43,5 @@
                 </div>                    
         </div>
     </form>
-
 
 {{template "template-end.html" .}}

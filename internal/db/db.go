@@ -175,3 +175,127 @@ func (d *Db) GetUser(username string) *UserProfile {
 	}
 	return &up
 }
+
+/****   Roles     *****/
+
+func (d *Db) GetRole(rolename string) *Role {
+	var up Role
+	found := false
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("role:" + rolename))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				// not found, return nil error and let caller receive nil
+				return nil
+			}
+			return err
+		}
+
+		if err := item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &up)
+		}); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		return nil
+	}
+	return &up
+}
+
+func (d *Db) GetRoles() []Role {
+	prefix := []byte("role:")
+	var roles []Role
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var up Role
+			if err := json.Unmarshal(v, &up); err != nil {
+				return err
+			}
+			roles = append(roles, up)
+			log.Info("Key: %s, Value: %s\n", k, v)
+		}
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	return roles
+}
+
+func (d *Db) CreateRole(u *Role) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		role, err := txn.Get([]byte("role:" + u.RoleName))
+		if role != nil {
+			return fmt.Errorf("role %s already exists", u.RoleName)
+		}
+
+		key := "role:" + u.RoleName
+		val, err := json.Marshal(u)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) UpdateRole(u *Role) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		role, err := txn.Get([]byte("role:" + u.RoleName))
+		if role == nil {
+			return fmt.Errorf("role %s does not exists", u.RoleName)
+		}
+
+		key := "role:" + u.RoleName
+		val, err := json.Marshal(u)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) DeleteRole(roleName string) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		key := "role:" + roleName
+
+		item, err := txn.Get([]byte("role:" + roleName))
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			return fmt.Errorf("role %s does not exist", roleName)
+		}
+		err = txn.Delete([]byte(key))
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}

@@ -1,0 +1,69 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                <div class="form-group border">
+                    <strong>Guest internet (gateway) access</strong>
+
+                    <label for="default_access_profile">Authentication behaviour
+                        <sl-tooltip content="Control the gateway behaviour of unidentified users/devices to the network" hoist>
+                            <sl-icon name="info-circle"></sl-icon>
+                        </sl-tooltip>
+                    </label>
+                    <div class="indent">
+                        <sl-radio-group name="mode" value="login">
+                            <sl-radio value="login" {{if $.model.require_approval}} checked{{end}}>Require Login (Captive Portal)
+                                 <sl-tooltip content="Prompts user for credentials to determine access" hoist>
+                                    <sl-icon name="info-circle"></sl-icon>
+                                </sl-tooltip>   
+                            </sl-radio>
+                            <sl-checkbox class="indent">Allow self-registration</sl-checkbox>
+                                <sl-tooltip content="Allow guest to create own profile using default access profile auto-provisioned" hoist>
+                                    <sl-icon name="info-circle"></sl-icon>
+                                </sl-tooltip>   
+
+                            <sl-radio value="allow" {{if not $.model.require_approval}} checked{{end}}>Allow
+                                <sl-tooltip content="Automatically create a new user & device profile (using device name) with default access profile assigned" hoist>
+                                    <sl-icon name="info-circle"></sl-icon>
+                                </sl-tooltip>   
+                            </sl-radio>
+
+                            <sl-radio value="block" {{if not $.model.require_approval}} checked{{end}}>Block
+                                <sl-tooltip content="Serve the unauthorised page with no option to login.  The user will need to contact the administrator to provide access" hoist>
+                                    <sl-icon name="info-circle"></sl-icon>
+                                </sl-tooltip>   
+                            </sl-radio>
+
+                        </sl-radio-group>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="default_access_profile">Default access profile
+                            <sl-tooltip content="Default access that will be applied to new user profiles when auto-created" hoist>
+                                <sl-icon name="info-circle"></sl-icon>
+                            </sl-tooltip>   
+                        </label>
+                        <sl-dropdown name="default_role" class="indent">
+                            <sl-button slot="trigger" caret>guest</sl-button>
+                            <sl-menu>
+                            <sl-menu-item>guest</sl-menu-item>
+                            <sl-menu-item>user</sl-menu-item>
+                            <sl-menu-item>admin</sl-menu-item>
+                            </sl-menu>
+                        </sl-dropdown>
+                    </div>
+
+                </div>
+                <br />
+                <div class="form-group border">
+                    <sl-switch name="captive_portal" {{if $.model.captive_portal}} checked{{end}}> Captive Portal</sl-switch>
+                    <sl-tooltip content="When enabled, unidentified users will be redirected to a login page when they connect to the network." hoist>
+                        <sl-icon name="info-circle"></sl-icon>
+                    </sl-tooltip>   
+                </div>
+        </div>
+    </form>
+
+
+{{template "template-end.html" .}}

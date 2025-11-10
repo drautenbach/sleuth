@@ -1,0 +1,23 @@
+{{template "template-start.html" .}}
+
+    <span class="right"><sl-icon-button name="plus-square" href="roles/new"></sl-icon></span>
+    <h2>Roles</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Admin</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Roles}}
+            <tr>
+                <td><a href="role/{{.RoleName}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{.RoleName}}</td>
+                <td>{{if .Admin}}Yes{{else}}No{{end}}</td>                   
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+
+{{template "template-end.html" .}}

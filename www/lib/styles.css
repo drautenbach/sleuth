@@ -1543,3 +1543,15 @@ form-group {
 .error-message {
   color: red;
 }
+
+
+.form-group.border {
+  border-radius: 5px;
+  border: 1px solid var(--sl-color-neutral-200);
+  padding: 5px;
+  
+}
+
+.indent {
+  margin-left: 25px;
+}

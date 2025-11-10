@@ -7,7 +7,7 @@
             <tr>
                 <th>User</th>
                 <th>Full Name</th>
-                <th>Admin</th>
+                <th>Role</th>
                 <th>Enabled</th>
             </tr>
         </thead>
@@ -16,7 +16,7 @@
             <tr>
                 <td><a href="user/{{.UserName}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{.UserName}}</td>
                 <td>{{.FullName}}</td>                   
-                <td>{{if .Admin}}Yes{{else}}No{{end}}</td>                   
+                <td>{{.Role}}</td>                   
                 <td>{{if .Enabled}}Yes{{else}}No{{end}}</td>                   
             </tr>
             {{end}}

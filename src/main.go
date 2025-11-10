@@ -8,12 +8,35 @@ import (
 func main() {
 	log.Info("Starting Sleuth %s...\n", AppVersion)
 	d := db.InitDB("./.data/")
+	if len(d.GetRoles()) == 0 {
+		r := &db.Role{
+			RoleName:   "admin",
+			SystemRole: true,
+			Admin:      true,
+		}
+		d.CreateRole(r)
+
+		r = &db.Role{
+			RoleName:   "user",
+			SystemRole: true,
+			Admin:      false,
+		}
+		d.CreateRole(r)
+
+		r = &db.Role{
+			RoleName:   "guest",
+			SystemRole: true,
+			Admin:      false,
+		}
+		d.CreateRole(r)
+	}
+
 	if len(d.GetUsers()) == 0 {
 		up := &db.UserProfile{
 			UserName: "admin",
 			Password: "admin",
+			Role:     "admin",
 			Enabled:  true,
-			Admin:    true,
 		}
 		d.CreateUser(up)
 	}

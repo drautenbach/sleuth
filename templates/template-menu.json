@@ -4,7 +4,7 @@
         "title": "Getting Started",
         "href": "/",
         "items": [
-            { "name": "Default Settings", "href": "/settings"},
+            { "name": "Basic Settings", "href": "/settings"},
             { "name": "Terminal", "href": "/shell"}
         ]
     },
@@ -12,7 +12,7 @@
         "href": "/settings",
         "items": [
              { "name": "Users", "href": "/users" },
-             { "name": "Network", "href": "/setup/network" },
+             { "name": "Network Adapters", "href": "/setup/network" },
              { "name": "DNS", "href": "/setup/dns" },
              { "name": "Reverse proxy", "href": "/setup/proxy" }
         ]
@@ -20,6 +20,12 @@
     {
         "name": "Profiles",
         "items": [
+            { "name": "Roles", "href": "/profiles/roles" 
+            , "items": [ 
+                {"name": "New", "href": "/profiles/roles/new"},
+                {"name": "Edit", "href": "/profiles/role/"},
+                {"name": "Delete", "href": "/profiles/roles/delete"} 
+            ] },
             { "name": "Users", "href": "/profiles/users"
             , "items": [ 
                 {"name": "New", "href": "/profiles/users/new"},
