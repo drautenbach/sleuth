@@ -1,6 +1,6 @@
 {{template "template-start.html" .}}
 
-    <form method="post">
+    <form id="settings_form" method="POST">
         <div class="form-layout">
             <h3>{{.title}}</h3>
                 <div class="form-group border">
@@ -12,24 +12,27 @@
                         </sl-tooltip>
                     </label>
                     <div class="indent">
-                        <sl-radio-group name="mode" value="login">
-                            <sl-radio value="login" {{if $.model.require_approval}} checked{{end}}>Require Login (Captive Portal)
+                        <sl-radio-group id="settings_mode" name="mode" value="{{.model.Mode}}">
+                            <sl-radio value="0" {{if eq $.model.Mode 0}} checked{{end}}>Require Login (Captive Portal)
                                  <sl-tooltip content="Prompts user for credentials to determine access" hoist>
                                     <sl-icon name="info-circle"></sl-icon>
                                 </sl-tooltip>   
                             </sl-radio>
-                            <sl-checkbox class="indent">Allow self-registration</sl-checkbox>
+                            {{if eq $.model.Mode 0}}
+                            <sl-checkbox id="self_reg_enabled" name="self_reg_enabled" class="indent" {{if $.model.SelfRegEnabled}}checked{{end}}></sl-checkbox>Allow self-registration</sl-checkbox>
                                 <sl-tooltip content="Allow guest to create own profile using default access profile auto-provisioned" hoist>
                                     <sl-icon name="info-circle"></sl-icon>
                                 </sl-tooltip>   
-
-                            <sl-radio value="allow" {{if not $.model.require_approval}} checked{{end}}>Allow
+                            {{else}}
+                            <input type="hidden" name="self_reg_enabled" value="{{if $.model.SelfRegEnabled}}on{{else}}off{{end}}">
+                            {{end}}
+                            <sl-radio value="1" {{if eq $.model.Mode 1}} checked{{end}}>Allow
                                 <sl-tooltip content="Automatically create a new user & device profile (using device name) with default access profile assigned" hoist>
                                     <sl-icon name="info-circle"></sl-icon>
                                 </sl-tooltip>   
                             </sl-radio>
 
-                            <sl-radio value="block" {{if not $.model.require_approval}} checked{{end}}>Block
+                            <sl-radio value="2" {{if eq $.model.Mode 2}} checked{{end}}>Block
                                 <sl-tooltip content="Serve the unauthorised page with no option to login.  The user will need to contact the administrator to provide access" hoist>
                                     <sl-icon name="info-circle"></sl-icon>
                                 </sl-tooltip>   
@@ -38,32 +41,46 @@
                         </sl-radio-group>
                     </div>
 
+                    <input type="hidden" id="default_role" name="default_role" value="{{.model.DefaultRole}}">
+                    {{if ne .model.Mode 2}}
                     <div class="form-group">
-                        <label for="default_access_profile">Default access profile
-                            <sl-tooltip content="Default access that will be applied to new user profiles when auto-created" hoist>
+                        <label for="default_role">Default role
+                            <sl-tooltip content="Default role that will be applied to new user profiles when auto-created" hoist>
                                 <sl-icon name="info-circle"></sl-icon>
                             </sl-tooltip>   
                         </label>
                         <sl-dropdown name="default_role" class="indent">
-                            <sl-button slot="trigger" caret>guest</sl-button>
+                            <sl-button slot="trigger" caret>{{.model.DefaultRole}}</sl-button>
                             <sl-menu>
-                            <sl-menu-item>guest</sl-menu-item>
-                            <sl-menu-item>user</sl-menu-item>
-                            <sl-menu-item>admin</sl-menu-item>
+                            {{range .roles}}
+                                <sl-menu-item>{{.RoleName}}</sl-menu-item>
+                            {{end}}
                             </sl-menu>
                         </sl-dropdown>
                     </div>
+                    {{end}}
 
-                </div>
-                <br />
-                <div class="form-group border">
-                    <sl-switch name="captive_portal" {{if $.model.captive_portal}} checked{{end}}> Captive Portal</sl-switch>
-                    <sl-tooltip content="When enabled, unidentified users will be redirected to a login page when they connect to the network." hoist>
-                        <sl-icon name="info-circle"></sl-icon>
-                    </sl-tooltip>   
                 </div>
         </div>
     </form>
 
+
+<script lang="javascript">
+    document.onreadystatechange = function () {
+        if (document.readyState === "complete") {
+
+            document.querySelectorAll("sl-dropdown").forEach(dropdown => {
+                dropdown.addEventListener("sl-select", (e) => {
+                    document.getElementById(dropdown.getAttribute("name")).value = e.detail.item.innerText;
+                    settings_form.submit()
+                });
+            });
+
+            if (settings_mode) settings_mode.addEventListener("sl-change", function(e){ if (e.srcElement.tagName == "SL-RADIO-GROUP") settings_form.submit()});
+            if (self_reg_enabled) self_reg_enabled.addEventListener("sl-change", () => settings_form.submit());
+
+        }
+    }
+</script>
 
 {{template "template-end.html" .}}

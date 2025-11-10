@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"sleuth/internal/db"
 	"sleuth/internal/log"
 
 	"github.com/usvc/go-config"
@@ -159,4 +160,8 @@ var conf = config.Map{
 		Usage:     "working directory",
 		Shorthand: "w",
 	},
+}
+
+type GlobalConfiguration struct {
+	settings *db.Settings
 }

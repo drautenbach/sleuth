@@ -32,6 +32,58 @@ func (d *Db) Close() {
 		d.dbInstance = nil
 	}
 }
+
+/****   Settings     *****/
+
+func (d *Db) GetSettings() *Settings {
+	var s Settings
+	found := false
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("settings:global"))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				// not found, return nil error and let caller receive nil
+				return nil
+			}
+			return err
+		}
+
+		if err := item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &s)
+		}); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		return &Settings{
+			Mode:           ModeCaptive,
+			DefaultRole:    "guest",
+			SelfRegEnabled: true,
+		}
+	}
+	return &s
+}
+
+func (d *Db) SaveSettings(s Settings) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		key := "settings:global"
+		val, err := json.Marshal(s)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		return err
+	})
+}
+
+/****   Users     *****/
+
 func (d *Db) GetUsers() []UserProfile {
 	prefix := []byte("user:")
 	var users []UserProfile

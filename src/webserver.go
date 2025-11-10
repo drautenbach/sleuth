@@ -18,12 +18,14 @@ import (
 // A simple in-memory captive portal. It uses the client's IP address
 // to gate access: unknown IPs are redirected to /captive where they
 // can accept terms and be added to an allowlist for a short TTL.
+
 type Portal struct {
 	allowed map[string]time.Time
 	mu      sync.RWMutex
 	ttl     time.Duration
 	router  *gin.Engine
 	db      *db.Db
+	config  GlobalConfiguration
 }
 
 type Credentials struct {
@@ -258,15 +260,9 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func WebServer(database *db.Db) {
-	// TTL of 10 minutes for demonstration; set to 0 for indefinite
-	portal := NewPortal(60 * time.Minute)
-	portal.db = database
-
+func initWebServer(portal *Portal) {
 	wcSetupInit(portal)
 	wcUsersInit(portal)
 	wcProfilesInit(portal)
 	webShellInit(portal)
-
-	portal.router.Run(":80")
 }
