@@ -1,0 +1,43 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                <div class="form-group">
+                    <label for="macaddress">MAC Address</label>
+                    <input type="text" name="macaddress" value="{{.model.Device.MACAddress}}" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
+                </div>
+                <div class="form-group">
+                    <label for="devicename">Name</label>
+                    <input type="text" name="devicename" value="{{.model.Device.DeviceName}}" required />
+                </div>
+                <div class="form-group">
+                    <label for="username">Belongs to</label>
+                    <sl-select name="username" value="{{.model.Device.UserName}}">
+                        <sl-option value="">(Shared device)</sl-option>
+                        {{range .model.Users}}
+                            <sl-option value="{{.UserName}}">{{.FullName}} ({{.UserName}})</sl-option>
+                        {{end}}
+                    </sl-select>
+                </div>
+                <div class="form-group">
+                    <label for="hostname">Host Name</label>
+                    <input type="text" name="hostname" value="{{.model.Device.HostName}}" required />
+                </div>
+                
+                <p><label class="error-message">{{.error}}</label></p>
+                <div class="button-group">
+                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}"><sl-icon name="save" slot="prefix"></sl-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
+                    <sl-button variant="default" href="../devices" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>
+
+                    {{if eq $.action "edit"}}
+                        <span class="right">
+                            <sl-button href="../devices/delete/{{.model.Device.MACAddress}}" variant="danger" outline><sl-icon name="person-dash" slot="prefix"></sl-icon>Delete</sl-button>
+                        </span>
+                    {{end}}
+                </div>                    
+        </div>
+    </form>
+
+
+{{template "template-end.html" .}}

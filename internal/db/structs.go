@@ -23,6 +23,7 @@ type SystemProfile struct {
 
 type DeviceProfile struct {
 	MACAddress string
+	DeviceName string
 	HostName   string
 	UserName   string
 }

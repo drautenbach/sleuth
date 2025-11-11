@@ -351,3 +351,127 @@ func (d *Db) DeleteRole(roleName string) error {
 		return nil
 	})
 }
+
+/****   Devices     *****/
+
+func (d *Db) GetDevice(macaddress string) *DeviceProfile {
+	var up DeviceProfile
+	found := false
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("device:" + macaddress))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				// not found, return nil error and let caller receive nil
+				return nil
+			}
+			return err
+		}
+
+		if err := item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &up)
+		}); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		return nil
+	}
+	return &up
+}
+
+func (d *Db) GetDevices() []DeviceProfile {
+	prefix := []byte("device:")
+	var devices []DeviceProfile
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var up DeviceProfile
+			if err := json.Unmarshal(v, &up); err != nil {
+				return err
+			}
+			devices = append(devices, up)
+			log.Info("Key: %s, Value: %s\n", k, v)
+		}
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	return devices
+}
+
+func (d *Db) CreateDevice(dp *DeviceProfile) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		device, err := txn.Get([]byte("device:" + dp.MACAddress))
+		if device != nil {
+			return fmt.Errorf("device %s already exists", dp.MACAddress)
+		}
+
+		key := "device:" + dp.MACAddress
+		val, err := json.Marshal(dp)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) UpdateDevice(dp *DeviceProfile) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		device, err := txn.Get([]byte("device:" + dp.MACAddress))
+		if device == nil {
+			return fmt.Errorf("device %s does not exists", dp.MACAddress)
+		}
+
+		key := "device:" + dp.MACAddress
+		val, err := json.Marshal(dp)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) DeleteDevice(macAdress string) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		key := "device:" + macAdress
+
+		item, err := txn.Get([]byte("device:" + macAdress))
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			return fmt.Errorf("device %s does not exist", macAdress)
+		}
+		err = txn.Delete([]byte(key))
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}

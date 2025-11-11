@@ -1,0 +1,25 @@
+{{template "template-start.html" .}}
+
+    <span class="right"><sl-icon-button name="plus-square" href="devices/new"></sl-icon></span>
+    <h2>Devices</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>MAC Address</th>
+                <th>Belongs to</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Devices}}
+            <tr>
+                <td><a href="device/{{.MACAddress}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{if .DeviceName}}{{.DeviceName}}{{else}}{{.HostName}}{{end}}</td>
+                <td>{{.MACAddress}}</td>
+                <td>{{.UserName}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+
+{{template "template-end.html" .}}

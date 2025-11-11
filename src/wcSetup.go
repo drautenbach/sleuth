@@ -14,14 +14,14 @@ type wcSetup struct {
 func wcSetupInit(p *Portal) *wcSetup {
 	setup := &wcSetup{}
 
-	p.router.GET("/settings", func(c *gin.Context) {
-		p.HTML(c, "settings", gin.H{
+	p.server.router.GET("/settings", func(c *gin.Context) {
+		p.server.HTML(c, "settings", gin.H{
 			"model": p.config.settings,
 			"roles": p.db.GetRoles(),
 		})
 	})
 
-	p.router.POST("/settings", func(c *gin.Context) {
+	p.server.router.POST("/settings", func(c *gin.Context) {
 		mode, err := strconv.Atoi(c.PostForm("mode"))
 		if err == nil {
 			p.config.settings.DefaultRole = c.PostForm("default_role")
@@ -44,7 +44,7 @@ func wcSetupInit(p *Portal) *wcSetup {
 			}
 		}
 
-		p.HTML(c, "settings", gin.H{
+		p.server.HTML(c, "settings", gin.H{
 			"model": p.config.settings,
 			"roles": p.db.GetRoles(),
 			"err":   err,

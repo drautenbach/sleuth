@@ -34,17 +34,17 @@ func webShellInit(p *Portal) *webShell {
 		MaxBufferSizeBytes:   maxBufferSizeBytes,
 	}
 
-	p.router.GET("/shell", p.serveTemplate)
-	p.router.Any("/shell/xterm", xtermjs.GetHandler(xtermjsHandlerOptions))
+	p.server.router.GET("/shell", p.server.serveTemplate)
+	p.server.router.Any("/shell/xterm", xtermjs.GetHandler(xtermjsHandlerOptions))
 
 	// readiness probe endpoint
-	p.router.GET("shell/ready", func(c *gin.Context) {
+	p.server.router.GET("shell/ready", func(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Write([]byte("ok"))
 	})
 
 	// liveness probe endpoint
-	p.router.GET("shell/health", func(c *gin.Context) {
+	p.server.router.GET("shell/health", func(c *gin.Context) {
 		c.Writer.WriteHeader(http.StatusOK)
 		c.Writer.Write([]byte("ok"))
 	})
@@ -60,8 +60,8 @@ func webShellInit(p *Portal) *webShell {
 
 	// this is the endpoint for serving xterm.js assets
 	//depenenciesDirectory := path.Join(".", "./node_modules")
-	//p.router.PathPrefix("/assets").Handler(http.StripPrefix("/assets", http.FileServer(http.Dir(depenenciesDirectory))))
-	p.router.Static("/assets", "./node_modules")
+	//p.server.router.PathPrefix("/assets").Handler(http.StripPrefix("/assets", http.FileServer(http.Dir(depenenciesDirectory))))
+	p.server.router.Static("/assets", "./node_modules")
 
 	// this is the endpoint for the root path aka website
 	//publicAssetsDirectory := path.Join(workingDirectory, "./public")

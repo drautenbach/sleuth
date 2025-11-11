@@ -3,7 +3,6 @@ package main
 import (
 	"sleuth/internal/db"
 	"sleuth/internal/log"
-	"time"
 )
 
 func main() {
@@ -11,11 +10,7 @@ func main() {
 	GetConfig().ReadConfig()
 	GetConfig().Print()
 
-	p := NewPortal(60 * time.Minute)
-	p.db = db.InitDB("./.data/")
-	p.config = GlobalConfiguration{
-		settings: p.db.GetSettings(),
-	}
+	p := InitPortal()
 
 	if len(p.db.GetRoles()) == 0 {
 		r := &db.Role{
@@ -53,8 +48,7 @@ func main() {
 	initServer()
 	initBlacklistRenewal()
 	// start HTTP and DNS servers concurrently and keep main alive
-	initWebServer(p)
-	go p.router.Run(":80")
+	go p.server.router.Run(":80")
 	go DnsServer()
 	select {}
 }

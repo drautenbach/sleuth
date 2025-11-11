@@ -32,6 +32,12 @@
                 {"name": "Edit", "href": "/profiles/user/"},
                 {"name": "Delete", "href": "/profiles/users/delete"}, 
                 {"name": "Reset Password", "href": "/profiles/users/resetpassword"} 
+            ] },
+            { "name": "Devices", "href": "/profiles/devices"
+            , "items": [ 
+                {"name": "New", "href": "/profiles/devices/new"},
+                {"name": "Edit", "href": "/profiles/device/"},
+                {"name": "Delete", "href": "/profiles/devices/delete"}
             ] }
         ]
     }

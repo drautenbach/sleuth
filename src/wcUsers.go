@@ -28,10 +28,10 @@ type LocalUser struct {
 
 func wcUsersInit(p *Portal) *wcUsers {
 	u := &wcUsers{}
-	p.router.GET("/users", func(c *gin.Context) {
+	p.server.router.GET("/users", func(c *gin.Context) {
 
 		LocalUsers, LocalUsersError := u.GetLocalUsers()
-		p.HTML(c, "users", gin.H{
+		p.server.HTML(c, "users", gin.H{
 			"model": gin.H{
 				"LocalUsers":      LocalUsers,
 				"LocalUsersError": LocalUsersError,

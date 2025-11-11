@@ -15,17 +15,17 @@ type wcProfiles struct {
 func wcProfilesInit(p *Portal) *wcProfiles {
 	profiles := &wcProfiles{}
 
-	p.router.GET("/profiles/users", func(c *gin.Context) {
+	p.server.router.GET("/profiles/users", func(c *gin.Context) {
 		Users := p.db.GetUsers()
-		p.HTML(c, "profiles_users", gin.H{
+		p.server.HTML(c, "profiles_users", gin.H{
 			"model": gin.H{
 				"Users": Users,
 			},
 		})
 	})
 
-	p.router.GET("/profiles/users/new", func(c *gin.Context) {
-		p.HTML(c, "profiles_user", gin.H{
+	p.server.router.GET("/profiles/users/new", func(c *gin.Context) {
+		p.server.HTML(c, "profiles_user", gin.H{
 			"action": "create",
 			"title":  "New User",
 			"model": gin.H{
@@ -34,7 +34,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/users/new", func(c *gin.Context) {
+	p.server.router.POST("/profiles/users/new", func(c *gin.Context) {
 		var u = &db.UserProfile{
 			UserName:      c.PostForm("username"),
 			FullName:      c.PostForm("fullname"),
@@ -48,7 +48,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			c.Redirect(http.StatusSeeOther, "/profiles/users")
 			c.Abort()
 		} else {
-			p.HTML(c, "profiles_user", gin.H{
+			p.server.HTML(c, "profiles_user", gin.H{
 				"action": "create",
 				"title":  "New User",
 				"error":  err.Error(),
@@ -59,12 +59,12 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	p.router.GET("/profiles/user/:username", func(c *gin.Context) {
+	p.server.router.GET("/profiles/user/:username", func(c *gin.Context) {
 		// get username from the route parameter
 		username := c.Param("username")
 		User := p.db.GetUser(username)
 		Roles := p.db.GetRoles()
-		p.HTML(c, "profiles_user", gin.H{
+		p.server.HTML(c, "profiles_user", gin.H{
 			"action": "edit",
 			"title":  "Edit User",
 			"model": gin.H{
@@ -74,7 +74,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/user/:username", func(c *gin.Context) {
+	p.server.router.POST("/profiles/user/:username", func(c *gin.Context) {
 		var u = p.db.GetUser(c.Param("username"))
 		var err error
 		if u == nil {
@@ -93,7 +93,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		} else {
 			var roles = p.db.GetRoles()
 
-			p.HTML(c, "profiles_user", gin.H{
+			p.server.HTML(c, "profiles_user", gin.H{
 				"action": "edit",
 				"title":  "Edit User",
 				"error":  err.Error(),
@@ -105,10 +105,10 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	p.router.GET("/profiles/users/delete/:username", func(c *gin.Context) {
+	p.server.router.GET("/profiles/users/delete/:username", func(c *gin.Context) {
 		// get username from the route parameter
 		User := p.db.GetUser(c.Param("username"))
-		p.HTML(c, "profiles_user_delete", gin.H{
+		p.server.HTML(c, "profiles_user_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete User",
 			"model": gin.H{
@@ -117,7 +117,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/users/delete/:username", func(c *gin.Context) {
+	p.server.router.POST("/profiles/users/delete/:username", func(c *gin.Context) {
 		// get username from the route parameter
 		err := p.db.DeleteUser(c.Param("username"))
 		if err == nil {
@@ -125,7 +125,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			c.Abort()
 		} else {
 			User := p.db.GetUser(c.Param("username"))
-			p.HTML(c, "profiles_user_delete", gin.H{
+			p.server.HTML(c, "profiles_user_delete", gin.H{
 				"action": "delete",
 				"title":  "Delete User",
 				"error":  err.Error(),
@@ -136,10 +136,10 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	p.router.GET("/profiles/users/reset/:username", func(c *gin.Context) {
+	p.server.router.GET("/profiles/users/reset/:username", func(c *gin.Context) {
 		// get username from the route parameter
 		User := p.db.GetUser(c.Param("username"))
-		p.HTML(c, "profiles_user_reset", gin.H{
+		p.server.HTML(c, "profiles_user_reset", gin.H{
 			"action": "reset",
 			"title":  "Reset User Password",
 			"model": gin.H{
@@ -148,7 +148,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/users/reset/:username", func(c *gin.Context) {
+	p.server.router.POST("/profiles/users/reset/:username", func(c *gin.Context) {
 		var u = p.db.GetUser(c.Param("username"))
 		var err error
 		if u == nil {
@@ -162,7 +162,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			c.Redirect(http.StatusSeeOther, "/profiles/users")
 			c.Abort()
 		} else {
-			p.HTML(c, "profiles_user_reset", gin.H{
+			p.server.HTML(c, "profiles_user_reset", gin.H{
 				"action": "reset",
 				"title":  "Reset User Password",
 				"model": gin.H{
@@ -174,17 +174,17 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 
 	/**** Roles ****/
 
-	p.router.GET("/profiles/roles", func(c *gin.Context) {
+	p.server.router.GET("/profiles/roles", func(c *gin.Context) {
 		roles := p.db.GetRoles()
-		p.HTML(c, "profiles_roles", gin.H{
+		p.server.HTML(c, "profiles_roles", gin.H{
 			"model": gin.H{
 				"Roles": roles,
 			},
 		})
 	})
 
-	p.router.GET("/profiles/roles/new", func(c *gin.Context) {
-		p.HTML(c, "profiles_role", gin.H{
+	p.server.router.GET("/profiles/roles/new", func(c *gin.Context) {
+		p.server.HTML(c, "profiles_role", gin.H{
 			"action": "create",
 			"title":  "New Role",
 			"model": gin.H{
@@ -193,7 +193,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/roles/new", func(c *gin.Context) {
+	p.server.router.POST("/profiles/roles/new", func(c *gin.Context) {
 		var r = &db.Role{
 			RoleName: c.PostForm("rolename"),
 			Admin:    c.PostForm("admin") == "on",
@@ -203,7 +203,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			c.Redirect(http.StatusSeeOther, "/profiles/roles")
 			c.Abort()
 		} else {
-			p.HTML(c, "profiles_role", gin.H{
+			p.server.HTML(c, "profiles_role", gin.H{
 				"action": "create",
 				"title":  "New Role",
 				"error":  err.Error(),
@@ -214,11 +214,11 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	p.router.GET("/profiles/role/:rolename", func(c *gin.Context) {
+	p.server.router.GET("/profiles/role/:rolename", func(c *gin.Context) {
 		// get rolename from the route parameter
 		rolename := c.Param("rolename")
 		role := p.db.GetRole(rolename)
-		p.HTML(c, "profiles_role", gin.H{
+		p.server.HTML(c, "profiles_role", gin.H{
 			"action": "edit",
 			"title":  "Edit Role",
 			"model": gin.H{
@@ -227,7 +227,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/role/:rolename", func(c *gin.Context) {
+	p.server.router.POST("/profiles/role/:rolename", func(c *gin.Context) {
 		var r = p.db.GetRole(c.Param("rolename"))
 		var err error
 		if r == nil {
@@ -241,7 +241,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			c.Redirect(http.StatusSeeOther, "/profiles/roles")
 			c.Abort()
 		} else {
-			p.HTML(c, "profiles_role", gin.H{
+			p.server.HTML(c, "profiles_role", gin.H{
 				"action": "edit",
 				"title":  "Edit Role",
 				"error":  err.Error(),
@@ -252,10 +252,10 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	p.router.GET("/profiles/roles/delete/:rolename", func(c *gin.Context) {
+	p.server.router.GET("/profiles/roles/delete/:rolename", func(c *gin.Context) {
 		// get rolename from the route parameter
 		role := p.db.GetRole(c.Param("rolename"))
-		p.HTML(c, "profiles_role_delete", gin.H{
+		p.server.HTML(c, "profiles_role_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete Role",
 			"model": gin.H{
@@ -264,7 +264,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
-	p.router.POST("/profiles/roles/delete/:rolename", func(c *gin.Context) {
+	p.server.router.POST("/profiles/roles/delete/:rolename", func(c *gin.Context) {
 		// get rolename from the route parameter
 		err := p.db.DeleteRole(c.Param("rolename"))
 		if err == nil {
@@ -272,12 +272,130 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			c.Abort()
 		} else {
 			role := p.db.GetRole(c.Param("rolename"))
-			p.HTML(c, "profiles_role_delete", gin.H{
+			p.server.HTML(c, "profiles_role_delete", gin.H{
 				"action": "delete",
 				"title":  "Delete Role",
 				"error":  err.Error(),
 				"model": gin.H{
 					"Role": role,
+				},
+			})
+		}
+	})
+
+	/**** Devices ****/
+
+	p.server.router.GET("/profiles/devices", func(c *gin.Context) {
+		devices := p.db.GetDevices()
+		p.server.HTML(c, "profiles_devices", gin.H{
+			"model": gin.H{
+				"Devices": devices,
+			},
+		})
+	})
+
+	p.server.router.GET("/profiles/devices/new", func(c *gin.Context) {
+		p.server.HTML(c, "profiles_device", gin.H{
+			"action": "create",
+			"title":  "New Device",
+			"model": gin.H{
+				"Device": make(map[string]interface{}),
+				"Users":  p.db.GetUsers(),
+			},
+		})
+	})
+
+	p.server.router.POST("/profiles/devices/new", func(c *gin.Context) {
+		var d = &db.DeviceProfile{
+			MACAddress: c.PostForm("macaddress"),
+			HostName:   c.PostForm("hostname"),
+			UserName:   c.PostForm("username"),
+			DeviceName: c.PostForm("devicename"),
+		}
+		var err = p.db.CreateDevice(d)
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/profiles/devices")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "profiles_device", gin.H{
+				"action": "create",
+				"title":  "New Device",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Device": d,
+					"Users":  p.db.GetUsers(),
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/profiles/device/:macaddress", func(c *gin.Context) {
+		// get rolename from the route parameter
+		macaddress := c.Param("macaddress")
+		p.server.HTML(c, "profiles_device", gin.H{
+			"action": "edit",
+			"title":  "Edit Device",
+			"model": gin.H{
+				"Device": p.db.GetDevice(macaddress),
+				"Users":  p.db.GetUsers(),
+			},
+		})
+	})
+
+	p.server.router.POST("/profiles/device/:devicename", func(c *gin.Context) {
+		var d = p.db.GetDevice(c.Param("devicename"))
+		var err error
+		if d == nil {
+			err = fmt.Errorf("device %s does not exist", c.Param("devicename"))
+		} else {
+			d.HostName = c.PostForm("hostname")
+			d.UserName = c.PostForm("username")
+			d.DeviceName = c.PostForm("devicename")
+			p.db.UpdateDevice(d)
+		}
+
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/profiles/devices")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "profiles_device", gin.H{
+				"action": "edit",
+				"title":  "Edit Device",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Device": d,
+					"Users":  p.db.GetUsers(),
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/profiles/devices/delete/:macaddress", func(c *gin.Context) {
+		// get macaddress from the route parameter
+		device := p.db.GetDevice(c.Param("macaddress"))
+		p.server.HTML(c, "profiles_device_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete Device",
+			"model": gin.H{
+				"Device": device,
+			},
+		})
+	})
+
+	p.server.router.POST("/profiles/devices/delete/:macaddress", func(c *gin.Context) {
+		// get devicename from the route parameter
+		err := p.db.DeleteDevice(c.Param("macaddress"))
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/profiles/devices")
+			c.Abort()
+		} else {
+			device := p.db.GetDevice(c.Param("devicename"))
+			p.server.HTML(c, "profiles_device_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete Device",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Device": device,
 				},
 			})
 		}

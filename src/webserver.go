@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sleuth/internal/db"
 	"strings"
 	"sync"
 	"time"
@@ -15,17 +14,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// A simple in-memory captive portal. It uses the client's IP address
-// to gate access: unknown IPs are redirected to /captive where they
-// can accept terms and be added to an allowlist for a short TTL.
-
-type Portal struct {
-	allowed map[string]time.Time
-	mu      sync.RWMutex
+type WebServer struct {
 	ttl     time.Duration
+	allowed map[string]time.Time
 	router  *gin.Engine
-	db      *db.Db
-	config  GlobalConfiguration
+	mu      sync.RWMutex
 }
 
 type Credentials struct {
@@ -33,70 +26,15 @@ type Credentials struct {
 	Password string
 }
 
-func NewPortal(ttl time.Duration) *Portal {
-	p := &Portal{
-		allowed: make(map[string]time.Time),
-		ttl:     ttl,
-		router:  gin.Default(),
-	}
-
-	// register template functions before loading templates
-	p.router.SetFuncMap(template.FuncMap{
-		"title": func() template.HTML {
-			return template.HTML(fmt.Sprintf("<title>%s</title>", "Sleuth"))
-		},
-		"array": func(values ...interface{}) []interface{} {
-			return values
-		},
-	})
-
-	p.router.Use(p.interceptHandler)
-	p.router.Static("/lib", "www/lib")
-	p.router.StaticFile("/login", "www/login")
-	p.router.LoadHTMLGlob("templates/*")
-	p.router.GET("/", p.serveTemplate)
-	p.router.GET("/logout", p.logoutHandler)
-	return p
+func (s *WebServer) serveTemplate(c *gin.Context) {
+	s.HTML(c, strings.TrimPrefix(c.Request.URL.Path, "/"), nil)
 }
 
-func (p *Portal) isAllowed(c *gin.Context) bool {
-	if c.Request.Method == http.MethodGet {
-		info, err := os.Stat("./www" + c.Request.URL.Path)
-		if info != nil && (os.IsExist(err) || !info.IsDir()) {
-			return true
-		}
-	}
-	ip := clientIP(c.Request)
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	if t, ok := p.allowed[ip]; ok {
-		if p.ttl == 0 || time.Now().Before(t) {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *Portal) allow(ip string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.ttl == 0 {
-		// zero time means allowed indefinitely
-		p.allowed[ip] = time.Time{}
-	} else {
-		p.allowed[ip] = time.Now().Add(p.ttl)
-	}
-}
-
-func (p *Portal) serveTemplate(c *gin.Context) {
-	p.HTML(c, strings.TrimPrefix(c.Request.URL.Path, "/"), nil)
-}
-
-func (p *Portal) HTML(c *gin.Context, path string, obj any) {
+func (s *WebServer) HTML(c *gin.Context, path string, obj any) {
 	// create a response map and merge any provided map-like object into it
 	data := gin.H{}
 	if path == "" {
-		path = "index"
+		path = "admin_index"
 	}
 
 	if obj != nil {
@@ -114,13 +52,13 @@ func (p *Portal) HTML(c *gin.Context, path string, obj any) {
 
 	// set common fields
 	data["context"] = c
-	data["nav"] = p.loadMenu(c)
+	data["nav"] = s.loadMenu(c)
 	//data["path"] = path
 
 	c.HTML(http.StatusOK, path+".html", data)
 }
 
-func (p *Portal) loadMenu(c *gin.Context) gin.H {
+func (s *WebServer) loadMenu(c *gin.Context) gin.H {
 	data, err := os.ReadFile("templates/template-menu.json")
 	if err != nil {
 		return nil
@@ -176,17 +114,17 @@ func (p *Portal) loadMenu(c *gin.Context) gin.H {
 
 // ServeHTTP is middleware that checks the client IP and redirects
 // to the captive portal when necessary.
-func (p *Portal) logoutHandler(c *gin.Context) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (s *WebServer) logoutHandler(c *gin.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	ip := clientIP(c.Request)
-	delete(p.allowed, ip)
+	delete(s.allowed, ip)
 	c.Redirect(http.StatusSeeOther, "/")
 }
 
 func (p *Portal) interceptHandler(c *gin.Context) {
 	ip := clientIP(c.Request)
-	if p.isAllowed(c) {
+	if p.server.isAllowed(c) {
 		c.Next()
 		return
 	}
@@ -203,7 +141,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					confirmPassword := c.Request.FormValue("confirm_password")
 					if newPassword == confirmPassword {
 						p.db.SetPassword(u.UserName, newPassword)
-						p.allow(ip)
+						p.server.allow(ip)
 						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
 						return
 					} else {
@@ -219,7 +157,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 			u := p.db.GetUser(c.Request.FormValue("username"))
 			if u != nil {
 				if u.PasswordReset.After(time.Now()) {
-					p.HTML(c, "reset_password", gin.H{
+					p.server.HTML(c, "reset_password", gin.H{
 						"username": c.Request.FormValue("username"),
 						"next":     c.Query("next"),
 						"error":    err,
@@ -227,7 +165,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					c.Abort()
 					return
 				} else if u.Password == c.Request.FormValue("password") {
-					p.allow(ip)
+					p.server.allow(ip)
 					c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
 					return
 				} else {
@@ -240,7 +178,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 
 	}
 
-	p.HTML(c, "login", gin.H{
+	p.server.HTML(c, "admin_login", gin.H{
 		"next":  c.Query("next"),
 		"error": err,
 	})
@@ -260,9 +198,65 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func initWebServer(portal *Portal) {
-	wcSetupInit(portal)
-	wcUsersInit(portal)
-	wcProfilesInit(portal)
-	webShellInit(portal)
+func GetMACAddress(ip string) string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+
+	for _, iface := range interfaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var currentIP net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				currentIP = v.IP
+			case *net.IPAddr:
+				currentIP = v.IP
+			}
+			if currentIP.String() == ip {
+				return iface.HardwareAddr.String()
+			}
+		}
+	}
+	return ""
+}
+
+func (s *WebServer) allow(ip string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ttl == 0 {
+		// zero time means allowed indefinitely
+		s.allowed[ip] = time.Time{}
+	} else {
+		s.allowed[ip] = time.Now().Add(s.ttl)
+	}
+}
+
+func initWebServer(ttl time.Duration) WebServer {
+	s := &WebServer{
+		allowed: make(map[string]time.Time),
+		router:  gin.Default(),
+		ttl:     ttl,
+	}
+	// register template functions before loading templates
+	s.router.SetFuncMap(template.FuncMap{
+		"title": func() template.HTML {
+			return template.HTML(fmt.Sprintf("<title>%s</title>", "Sleuth"))
+		},
+		"array": func(values ...interface{}) []interface{} {
+			return values
+		},
+	})
+
+	s.router.Static("/lib", "www/lib")
+	s.router.StaticFile("/login", "www/admin_login")
+	s.router.LoadHTMLGlob("templates/*")
+	s.router.GET("/", s.serveTemplate)
+	s.router.GET("/logout", s.logoutHandler)
+
+	return *s
 }
