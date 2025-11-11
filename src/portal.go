@@ -22,11 +22,9 @@ type Portal struct {
 
 func InitPortal() *Portal {
 	p := &Portal{
-		server: initWebServer(60 * time.Minute),
+		db: db.InitDB("./.data/"),
 	}
-	p.server.router.Use(p.interceptHandler)
-
-	p.db = db.InitDB("./.data/")
+	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}

@@ -191,7 +191,7 @@ func (s *WebServer) allow(ip string) {
 	}
 }
 
-func initWebServer(ttl time.Duration) WebServer {
+func initWebServer(ttl time.Duration, h gin.HandlerFunc) *WebServer {
 	s := &WebServer{
 		allowed: make(map[string]time.Time),
 		router:  gin.Default(),
@@ -207,11 +207,14 @@ func initWebServer(ttl time.Duration) WebServer {
 		},
 	})
 
+	if h != nil {
+		s.router.Use(h)
+	}
 	s.router.Static("/lib", "www/lib")
 	s.router.StaticFile("/login", "www/admin_login")
 	s.router.LoadHTMLGlob("templates/*")
 	s.router.GET("/", s.serveTemplate)
 	s.router.GET("/logout", s.logoutHandler)
 
-	return *s
+	return s
 }
