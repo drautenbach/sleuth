@@ -122,69 +122,6 @@ func (s *WebServer) logoutHandler(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, "/")
 }
 
-func (p *Portal) interceptHandler(c *gin.Context) {
-	ip := clientIP(c.Request)
-	if p.server.isAllowed(c) {
-		c.Next()
-		return
-	}
-
-	var err error
-	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
-		var action = c.Request.FormValue("sleuth_action")
-		switch action {
-		case "reset_password":
-			u := p.db.GetUser(c.Request.FormValue("username"))
-			if u != nil {
-				if u.PasswordReset.After(time.Now()) {
-					newPassword := c.Request.FormValue("new_password")
-					confirmPassword := c.Request.FormValue("confirm_password")
-					if newPassword == confirmPassword {
-						p.db.SetPassword(u.UserName, newPassword)
-						p.server.allow(ip)
-						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-						return
-					} else {
-						err = fmt.Errorf("passwords do not match")
-					}
-				} else {
-					err = fmt.Errorf("password reset link has expired")
-				}
-			} else {
-				err = fmt.Errorf("user %s does not exist", c.Request.FormValue("username"))
-			}
-		case "login":
-			u := p.db.GetUser(c.Request.FormValue("username"))
-			if u != nil {
-				if u.PasswordReset.After(time.Now()) {
-					p.server.HTML(c, "reset_password", gin.H{
-						"username": c.Request.FormValue("username"),
-						"next":     c.Query("next"),
-						"error":    err,
-					})
-					c.Abort()
-					return
-				} else if u.Password == c.Request.FormValue("password") {
-					p.server.allow(ip)
-					c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-					return
-				} else {
-					err = fmt.Errorf("invalid username or password")
-				}
-			} else {
-				err = fmt.Errorf("invalid username or password")
-			}
-		}
-
-	}
-
-	p.server.HTML(c, "admin_login", gin.H{
-		"next":  c.Query("next"),
-		"error": err,
-	})
-	c.Abort()
-}
-
 func clientIP(r *http.Request) string {
 	// prefer X-Forwarded-For if present (first value)
 	if f := r.Header.Get("X-Forwarded-For"); f != "" {
@@ -223,6 +160,24 @@ func GetMACAddress(ip string) string {
 		}
 	}
 	return ""
+}
+
+func (s *WebServer) isAllowed(c *gin.Context) bool {
+	if c.Request.Method == http.MethodGet {
+		info, err := os.Stat("./www" + c.Request.URL.Path)
+		if info != nil && (os.IsExist(err) || !info.IsDir()) {
+			return true
+		}
+	}
+	ip := clientIP(c.Request)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if t, ok := s.allowed[ip]; ok {
+		if s.ttl == 0 || time.Now().Before(t) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *WebServer) allow(ip string) {
