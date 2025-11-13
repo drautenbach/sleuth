@@ -38,7 +38,7 @@ func InitPortal() *Portal {
 }
 
 func (p *Portal) interceptHandler(c *gin.Context) {
-	ip := clientIP(c.Request)
+	//ip := clientIP(c.Request)
 	if p.server.isAllowed(c) {
 		c.Next()
 		return
@@ -56,9 +56,14 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					confirmPassword := c.Request.FormValue("confirm_password")
 					if newPassword == confirmPassword {
 						p.db.SetPassword(u.UserName, newPassword)
-						p.server.allow(ip)
-						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-						return
+						token, exp, serr := p.server.CreateSessionToken(u.UserName)
+						if serr == nil {
+							maxAge := int(time.Until(exp).Seconds())
+							c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
+							c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+							return
+						}
+						err = serr
 					} else {
 						err = fmt.Errorf("passwords do not match")
 					}
@@ -80,9 +85,14 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					c.Abort()
 					return
 				} else if u.Password == c.Request.FormValue("password") {
-					p.server.allow(ip)
-					c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-					return
+					token, exp, serr := p.server.CreateSessionToken(u.UserName)
+					if serr == nil {
+						maxAge := int(time.Until(exp).Seconds())
+						c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
+						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+						return
+					}
+					err = serr
 				} else {
 					err = fmt.Errorf("invalid username or password")
 				}
