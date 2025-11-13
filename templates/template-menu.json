@@ -8,15 +8,6 @@
             { "name": "Terminal", "href": "/shell"}
         ]
     },
-    {   "name": "Settings",
-        "href": "/settings",
-        "items": [
-             { "name": "Users", "href": "/users" },
-             { "name": "Network Adapters", "href": "/setup/network" },
-             { "name": "DNS", "href": "/setup/dns" },
-             { "name": "Reverse proxy", "href": "/setup/proxy" }
-        ]
-    },
     {
         "name": "Profiles",
         "items": [
@@ -39,6 +30,16 @@
                 {"name": "Edit", "href": "/profiles/device/"},
                 {"name": "Delete", "href": "/profiles/devices/delete"}
             ] }
+        ]
+    },
+    {   "name": "System",
+        "href": "/system",
+        "items": [
+             { "name": "Users", "href": "/system/users" },
+             { "name": "Network", "href": "/system/network" },
+             { "name": "Logs", "href": "/system/logs" },
+             { "name": "DNS", "href": "/setup/dns" },
+             { "name": "Reverse proxy", "href": "/setup/proxy" }
         ]
     }
 

@@ -1,0 +1,26 @@
+{{template "template-start.html" .}}
+
+    <h2>Network</h2>
+
+    <p>
+        <table border="1" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Speed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .model.adapters}}
+                <tr>
+                    <td>{{.Name}}</td>
+                    <td>{{.HardwareAddr}}</td>
+                    <td>{{.MTU}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </p>
+
+{{template "template-end.html" .}}

@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type wcUsers struct {
+type wcSystem struct {
 }
 
 type shadowUser struct {
@@ -26,22 +26,30 @@ type LocalUser struct {
 	SuperUser bool
 }
 
-func wcUsersInit(p *Portal) *wcUsers {
-	u := &wcUsers{}
-	p.server.router.GET("/users", func(c *gin.Context) {
+func wcSystemInit(p *Portal) *wcSystem {
+	s := &wcSystem{}
+	p.server.router.GET("/system/users", func(c *gin.Context) {
 
-		LocalUsers, LocalUsersError := u.GetLocalUsers()
-		p.server.HTML(c, "users", gin.H{
+		LocalUsers, LocalUsersError := s.GetLocalUsers()
+		p.server.HTML(c, "system_users", gin.H{
 			"model": gin.H{
 				"LocalUsers":      LocalUsers,
 				"LocalUsersError": LocalUsersError,
 			},
 		})
 	})
-	return u
+
+	p.server.router.GET("/system/network", func(c *gin.Context) {
+		p.server.HTML(c, "system_network", gin.H{
+			"model": gin.H{
+				"adapters": p.network.Adapters,
+			},
+		})
+	})
+	return s
 }
 
-func (wcUsers) GetLocalUsers() ([]LocalUser, error) {
+func (wcSystem) GetLocalUsers() ([]LocalUser, error) {
 	passwd, error := os.Open("/etc/passwd")
 	if error != nil {
 		return []LocalUser{}, error
