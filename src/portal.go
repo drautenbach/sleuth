@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"sleuth/internal/db"
+	"sleuth/internal/firewall"
 	"sleuth/internal/network"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ import (
 type Portal struct {
 	db      *db.Db
 	network *network.Network
+	fw      firewall.FirewallManager
 	server  WebServer
 	config  GlobalConfiguration
 }
@@ -26,6 +28,7 @@ func InitPortal() *Portal {
 	p := &Portal{
 		db:      db.InitDB("./.data/"),
 		network: network.InitNetwork(),
+		fw:      firewall.InitFirewall(),
 	}
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 	p.config = GlobalConfiguration{

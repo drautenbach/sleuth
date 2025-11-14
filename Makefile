@@ -11,13 +11,13 @@ update_version_file:
 linux: linux_amd64 linux_arm64 linux_arm
 
 linux_amd64:
-	env GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o build/go-hole_linux_amd64_${VERSION} src/*.go
+	env GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o build/sleuth_linux_amd64_${VERSION} src/*.go
 
 linux_arm64:
-	env GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o build/go-hole_linux_arm64_${VERSION} src/*.go
+	env GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o build/sleuth_linux_arm64_${VERSION} src/*.go
 
 linux_arm:
-	env GOOS=linux GOARCH=arm go build -ldflags="-w -s" -o build/go-hole_linux_arm_${VERSION} src/*.go
+	env GOOS=linux GOARCH=arm go build -ldflags="-w -s" -o build/sleuth_linux_arm_${VERSION} src/*.go
 
 
 init:
