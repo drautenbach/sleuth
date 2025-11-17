@@ -1,4 +1,4 @@
-package main
+package dns
 
 import (
 	"os"
@@ -33,7 +33,7 @@ local:
 
 func TestMain(m *testing.M) {
 	GetConfig().ReadConfigData([]byte(configuration))
-	initServer()
+	InitDnsServer()
 	code := m.Run()
 	os.Exit(code)
 }

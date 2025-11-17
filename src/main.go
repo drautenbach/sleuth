@@ -2,14 +2,14 @@ package main
 
 import (
 	"sleuth/internal/db"
+	"sleuth/internal/dns"
 	"sleuth/internal/log"
 )
 
 func main() {
 	log.Info("Starting Sleuth %s...\n", AppVersion)
-	GetConfig().ReadConfig()
-	GetConfig().Print()
 
+	dns.InitDnsServer()
 	p := InitPortal()
 
 	if len(p.db.GetRoles()) == 0 {
@@ -45,18 +45,8 @@ func main() {
 		p.db.CreateUser(up)
 	}
 	defer p.db.Close()
-	initServer()
-	initBlacklistRenewal()
 	// start HTTP and DNS servers concurrently and keep main alive
 	go p.server.router.Run(":80")
-	go DnsServer()
+	go dns.DnsServer()
 	select {}
-}
-
-func initServer() {
-	initLogging()
-	GetUpstreamCache().Init()
-	updateLocalRecords()
-	updateBlacklistRecords()
-	updateWhitelistRecords()
 }

@@ -1,4 +1,4 @@
-package main
+package dns
 
 import (
 	"log"
@@ -51,7 +51,20 @@ func handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.Close()
 }
 
+func InitDnsServer() {
+
+	GetConfig().ReadConfig()
+	GetConfig().Print()
+
+	initLogging()
+	GetUpstreamCache().Init()
+	updateLocalRecords()
+	updateBlacklistRecords()
+	updateWhitelistRecords()
+	initBlacklistRenewal()
+}
 func DnsServer() {
+
 	dns.HandleFunc(".", handleDnsRequest)
 
 	server := &dns.Server{
