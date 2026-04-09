@@ -139,33 +139,6 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func GetMACAddress(ip string) string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return ""
-	}
-
-	for _, iface := range interfaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-		for _, addr := range addrs {
-			var currentIP net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				currentIP = v.IP
-			case *net.IPAddr:
-				currentIP = v.IP
-			}
-			if currentIP.String() == ip {
-				return iface.HardwareAddr.String()
-			}
-		}
-	}
-	return ""
-}
-
 func (s *WebServer) isWebHost(hostname string) bool {
 	if hostname == "127.0.0.1" {
 		return true
@@ -195,52 +168,6 @@ func (s *WebServer) isWebHost(hostname string) bool {
 	}
 	return false
 }
-
-func (s *WebServer) isAllowed(c *gin.Context) bool {
-	if c.Request.Method == http.MethodGet && s.isWebHost(c.Request.Host) {
-		info, err := os.Stat("./www" + c.Request.URL.Path)
-		if info != nil && (os.IsExist(err) || !info.IsDir()) {
-			return true
-		}
-	}
-
-	// 1) Check JWT cookie or Authorization: Bearer token
-	var tokenStr string
-	if cookie, err := c.Cookie("sleuth_session"); err == nil {
-		tokenStr = cookie
-	} else {
-		if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-			tokenStr = strings.TrimPrefix(auth, "Bearer ")
-		}
-	}
-	if tokenStr != "" {
-		if _, err := s.ValidateSessionToken(tokenStr); err == nil {
-			return true
-		}
-	}
-
-	// 2) Fallback: legacy IP allowlist (kept for compatibility)
-	ip := clientIP(c.Request)
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if t, ok := s.allowed[ip]; ok {
-		if s.ttl == 0 || time.Now().Before(t) {
-			return true
-		}
-	}
-	return false
-}
-
-/*func (s *WebServer) allow(ip string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.ttl == 0 {
-		// zero time means allowed indefinitely
-		s.allowed[ip] = time.Time{}
-	} else {
-		s.allowed[ip] = time.Now().Add(s.ttl)
-	}
-}*/
 
 // CreateSessionToken creates a signed JWT for the given username and returns token string and expiration time.
 func (s *WebServer) CreateSessionToken(username string) (string, time.Time, error) {

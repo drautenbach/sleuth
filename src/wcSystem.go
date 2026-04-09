@@ -43,6 +43,7 @@ func wcSystemInit(p *Portal) *wcSystem {
 		p.server.HTML(c, "system_network", gin.H{
 			"model": gin.H{
 				"adapters": p.network.Adapters,
+				"nodes":    p.network.Nodes,
 			},
 		})
 	})

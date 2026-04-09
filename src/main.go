@@ -46,7 +46,7 @@ func main() {
 	}
 	defer p.db.Close()
 	// start HTTP and DNS servers concurrently and keep main alive
-	go p.server.router.Run(":80")
+	go p.server.router.Run("0.0.0.0:8080")
 	go dns.DnsServer()
 	select {}
 }

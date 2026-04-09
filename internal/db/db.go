@@ -95,7 +95,7 @@ func (d *Db) GetUsers() []UserProfile {
 
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
-			k := item.Key()
+			//k := item.Key()
 			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
 			if err != nil {
 				return err
@@ -105,7 +105,7 @@ func (d *Db) GetUsers() []UserProfile {
 				return err
 			}
 			users = append(users, up)
-			log.Info("Key: %s, Value: %s\n", k, v)
+			//log.Infof("Key: %s, Value: %s\n", k, v)
 		}
 		return nil
 	})
@@ -272,7 +272,7 @@ func (d *Db) GetRoles() []Role {
 
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
-			k := item.Key()
+			//k := item.Key()
 			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
 			if err != nil {
 				return err
@@ -282,7 +282,7 @@ func (d *Db) GetRoles() []Role {
 				return err
 			}
 			roles = append(roles, up)
-			log.Info("Key: %s, Value: %s\n", k, v)
+			//log.Infof("Key: %s, Value: %s\n", k, v)
 		}
 		return nil
 	})
@@ -396,7 +396,7 @@ func (d *Db) GetDevices() []DeviceProfile {
 
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
-			k := item.Key()
+			//k := item.Key()
 			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
 			if err != nil {
 				return err
@@ -406,7 +406,7 @@ func (d *Db) GetDevices() []DeviceProfile {
 				return err
 			}
 			devices = append(devices, up)
-			log.Info("Key: %s, Value: %s\n", k, v)
+			//log.Infof("Key: %s, Value: %s\n", k, v)
 		}
 		return nil
 	})

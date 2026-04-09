@@ -1,0 +1,17 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Build is handled by dlv debug, so just a placeholder command
+cmd = "true"
+# Path to binary (not actually used, but air requires it)
+bin = "tmp/main"
+tmp_dir = "tmp"
+kill_delay = 500
+
+[run]
+cmd = "dlv exec tmp/main --headless --listen=:40000 --api-version=2 --accept-multiclient"
+restart = true
+
+[log]
+time = true
