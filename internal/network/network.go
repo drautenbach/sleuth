@@ -26,6 +26,7 @@ type Network struct {
 	terminate chan struct{}
 
 	Nodes map[nodeKey]*node
+	Error string
 }
 
 type ArpTable map[string]string
@@ -182,23 +183,27 @@ func (n *Network) run() {
 	err := newListener(n)
 	if err != nil {
 		log.Printf("Unable to start socket capture (host name lookup will be disabled): %s", err.Error())
+		n.Error = err.Error()
 		return
 	}
 	err = newMethodArp(n)
 	if err != nil {
 		log.Printf("Unable to initilize arp listener: %s", err.Error())
+		n.Error = err.Error()
 		return
 	}
 
 	err = newMethodMdns(n)
 	if err != nil {
 		log.Printf("Unable to initilize Mdns listener: %s", err.Error())
+		n.Error = err.Error()
 		return
 	}
 
 	err = newMethodNbns(n)
 	if err != nil {
 		log.Printf("Unable to initilize Nbns listener: %s", err.Error())
+		n.Error = err.Error()
 		return
 	}
 
@@ -285,9 +290,18 @@ outer:
 	}
 }
 
-func (n *Network) Find(ip string) *node {
+func (n *Network) FindByIP(ip string) *node {
 	for _, node := range n.Nodes {
 		if node.Ip.String() == ip {
+			return node
+		}
+	}
+	return nil
+}
+
+func (n *Network) FindByMac(mac string) *node {
+	for _, node := range n.Nodes {
+		if node.Mac.String() == mac {
 			return node
 		}
 	}

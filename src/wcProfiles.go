@@ -29,7 +29,8 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			"action": "create",
 			"title":  "New User",
 			"model": gin.H{
-				"User": make(map[string]interface{}),
+				"User":  make(map[string]interface{}),
+				"Roles": p.db.GetRoles(),
 			},
 		})
 	})
@@ -53,7 +54,8 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 				"title":  "New User",
 				"error":  err.Error(),
 				"model": gin.H{
-					"User": u,
+					"User":  u,
+					"Roles": p.db.GetRoles(),
 				},
 			})
 		}
@@ -332,14 +334,51 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 	p.server.router.GET("/profiles/device/:macaddress", func(c *gin.Context) {
 		// get rolename from the route parameter
 		macaddress := c.Param("macaddress")
-		p.server.HTML(c, "profiles_device", gin.H{
-			"action": "edit",
-			"title":  "Edit Device",
-			"model": gin.H{
-				"Device": p.db.GetDevice(macaddress),
-				"Users":  p.db.GetUsers(),
-			},
-		})
+		device := p.db.GetDevice(macaddress)
+
+		if device != nil {
+			p.server.HTML(c, "profiles_device", gin.H{
+				"action":    "edit",
+				"title":     "Edit Device",
+				"actionUrl": "/profiles/device/" + macaddress,
+				"model": gin.H{
+					"Device": p.db.GetDevice(macaddress),
+					"Users":  p.db.GetUsers(),
+				},
+			})
+		} else {
+			deviceName := ""
+			node := p.network.FindByMac(macaddress)
+			if node != nil {
+				if node.Mdns != "" {
+					deviceName = node.Mdns
+				}
+				if node.Nbns != "" {
+					deviceName = node.Nbns
+				}
+				if node.Dns != "" {
+					deviceName = node.Dns
+				}
+			}
+			hostname := deviceName
+			if hostname == "" {
+				hostname = "Unknown"
+			}
+			device = &db.DeviceProfile{
+				MACAddress: macaddress,
+				DeviceName: deviceName,
+				HostName:   hostname,
+			}
+			p.server.HTML(c, "profiles_device", gin.H{
+				"action":    "create",
+				"actionUrl": "/profiles/devices/new",
+				"title":     "New Device",
+				"model": gin.H{
+					"Device": device,
+					"Users":  p.db.GetUsers(),
+				},
+			})
+		}
 	})
 
 	p.server.router.POST("/profiles/device/:devicename", func(c *gin.Context) {

@@ -138,14 +138,14 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 	// 2) Check by MAC address if client is allowed
 	ip := clientIP(c.Request)
 	macaddress := network.Search(ip)
-	node := p.network.Find(ip)
+	node := p.network.FindByIP(ip)
 	if node != nil {
 		macaddress = node.Mac.String()
 	}
 	if macaddress != "" {
 		device := p.db.GetDevice(macaddress)
 		if device == nil {
-			deviceName := "Unknown"
+			deviceName := ""
 			if node != nil {
 				if node.Mdns != "" {
 					deviceName = node.Mdns
@@ -157,9 +157,13 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 					deviceName = node.Dns
 				}
 			}
+			name := deviceName
+			if name == "" {
+				name = "Unknown"
+			}
 			p.db.CreateDevice(&db.DeviceProfile{
 				MACAddress: macaddress,
-				DeviceName: deviceName,
+				DeviceName: name,
 				HostName:   deviceName,
 			})
 		}
