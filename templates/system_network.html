@@ -3,6 +3,7 @@
     <h2>Network</h2>
 
     <p>
+        <h4>Adapters</h4>
         <table border="1" cellspacing="0">
             <thead>
                 <tr>
@@ -21,6 +22,42 @@
                 {{end}}
             </tbody>
         </table>
+    </p>
+
+    <p>
+        <h4>Neighbors</h4>
+        <table border="1" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Device Profile</th>
+                    <th>IP</th>
+                    <th>MAC</th>
+                    <th>Last Seen</th>
+                    <th>Dns</th>
+                    <th>Mdns</th>
+                    <th>Nbns</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .model.nodes}}
+                <tr>
+                    <td><a href="../profiles/device/{{.Mac}}"><sl-icon name="pencil-square" title="{{.DeviceTitle}}"></sl-icon></a>&nbsp;{{.DeviceName}}</td>
+                    <td>{{.IP}}</td>
+                    <td>{{.Mac}}</td>
+                    <td>{{.LastSeen}}</td>
+                    <td>{{.Dns}}</td>
+                    <td>{{.Mdns}}</td>
+                    <td>{{.Nbns}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{ if .model.error }}
+        <sl-alert variant="danger" open>
+        <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+        <strong>{{.model.error}}</strong><br />
+        </sl-alert>
+        {{ end }}
     </p>
 
 {{template "template-end.html" .}}

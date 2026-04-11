@@ -26,6 +26,17 @@ type LocalUser struct {
 	SuperUser bool
 }
 
+type Neighbour struct {
+	DeviceName  string
+	DeviceTitle string
+	IP          string
+	Mac         string
+	LastSeen    string
+	Dns         string
+	Nbns        string
+	Mdns        string
+}
+
 func wcSystemInit(p *Portal) *wcSystem {
 	s := &wcSystem{}
 	p.server.router.GET("/system/users", func(c *gin.Context) {
@@ -43,10 +54,38 @@ func wcSystemInit(p *Portal) *wcSystem {
 		p.server.HTML(c, "system_network", gin.H{
 			"model": gin.H{
 				"adapters": p.network.Adapters,
+				"nodes":    s.GetNeighbours(p),
+				"error":    p.network.Error,
 			},
 		})
 	})
 	return s
+}
+
+func (wcSystem) GetNeighbours(p *Portal) []Neighbour {
+	devices := make(map[string]string)
+	for _, device := range p.db.GetDevices() {
+		devices[device.MACAddress] = device.DeviceName
+	}
+	var neighbours []Neighbour
+	for _, node := range p.network.Nodes {
+		neighbour := Neighbour{
+			IP:         node.Ip.String(),
+			Mac:        node.Mac.String(),
+			LastSeen:   node.LastSeen.Format("2006-01-02 15:04:05"),
+			Dns:        node.Dns,
+			Mdns:       node.Mdns,
+			Nbns:       node.Nbns,
+			DeviceName: devices[node.Mac.String()],
+		}
+		if neighbour.DeviceName != "" {
+			neighbour.DeviceTitle = "Edit"
+		} else {
+			neighbour.DeviceTitle = "Create"
+		}
+		neighbours = append(neighbours, neighbour)
+	}
+	return neighbours
 }
 
 func (wcSystem) GetLocalUsers() ([]LocalUser, error) {

@@ -1,0 +1,30 @@
+{
+  "name": "Go Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.Go"
+      ]
+    }
+  },
+
+  "runArgs": [
+    "-p", "53:53/tcp",
+    "-p", "53:53/udp",
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined",
+    "-p", "40000:40000/tcp"
+  ],
+
+  "forwardPorts": [8080, 53],
+
+  "postCreateCommand": "go mod tidy"
+}

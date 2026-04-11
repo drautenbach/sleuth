@@ -7,6 +7,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"sleuth/internal/db"
@@ -26,7 +28,7 @@ type Portal struct {
 
 func InitPortal() *Portal {
 	p := &Portal{
-		db:      db.InitDB("./.data/"),
+		db:      db.InitDB("/tmp/sleuth/data/"),
 		network: network.InitNetwork(),
 		fw:      firewall.InitFirewall(),
 	}
@@ -45,7 +47,7 @@ func InitPortal() *Portal {
 
 func (p *Portal) interceptHandler(c *gin.Context) {
 	//ip := clientIP(c.Request)
-	if p.server.isAllowed(c) {
+	if p.isAllowed(c) {
 		c.Next()
 		return
 	}
@@ -114,4 +116,68 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		"error": err,
 	})
 	c.Abort()
+}
+
+func (p *Portal) isAllowed(c *gin.Context) bool {
+
+	// 1) Check JWT cookie or Authorization: Bearer token
+	var tokenStr string
+	if cookie, err := c.Cookie("sleuth_session"); err == nil {
+		tokenStr = cookie
+	} else {
+		if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			tokenStr = strings.TrimPrefix(auth, "Bearer ")
+		}
+	}
+	if tokenStr != "" {
+		if _, err := p.server.ValidateSessionToken(tokenStr); err == nil {
+			return true
+		}
+	}
+
+	// 2) Check by MAC address if client is allowed
+	ip := clientIP(c.Request)
+	macaddress := network.Search(ip)
+	node := p.network.FindByIP(ip)
+	if node != nil {
+		macaddress = node.Mac.String()
+	}
+	if macaddress != "" {
+		device := p.db.GetDevice(macaddress)
+		if device == nil {
+			deviceName := ""
+			if node != nil {
+				if node.Mdns != "" {
+					deviceName = node.Mdns
+				}
+				if node.Nbns != "" {
+					deviceName = node.Nbns
+				}
+				if node.Dns != "" {
+					deviceName = node.Dns
+				}
+			}
+			name := deviceName
+			if name == "" {
+				name = "Unknown"
+			}
+			p.db.CreateDevice(&db.DeviceProfile{
+				MACAddress: macaddress,
+				DeviceName: name,
+				HostName:   deviceName,
+			})
+		}
+	}
+
+	// 3) Static content on the web server should always be allowed
+	if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
+		if c.Request.Method == http.MethodGet {
+			info, err := os.Stat("./www" + c.Request.URL.Path)
+			if info != nil && (os.IsExist(err) || !info.IsDir()) {
+				return true
+			}
+		}
+	}
+
+	return false
 }

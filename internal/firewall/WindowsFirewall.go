@@ -4,5 +4,5 @@
 package firewall
 
 func InitFirewall() FirewallManager {
-	return nil
+	return SoftwareNAT()
 }

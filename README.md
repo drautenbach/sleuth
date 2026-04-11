@@ -35,3 +35,7 @@ As an additional feature, you can set a list of custom hostnames/domain names to
         ghcr.io/virtualzone/go-hole:latest
     ```
 1. Set Go-hole as your network's DNS server (i.e. in your DHCP server's configuration).
+
+## Packet capture
+Packet capture technique is used to resolve host-names.  On MacOS you have to give the process permission to run the packet capture:
+    ```sudo chmod o+rw /dev/bpf*```
