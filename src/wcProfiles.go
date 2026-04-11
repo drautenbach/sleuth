@@ -311,6 +311,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			HostName:   c.PostForm("hostname"),
 			UserName:   c.PostForm("username"),
 			DeviceName: c.PostForm("devicename"),
+			Enabled:    c.PostForm("enabled") == "true",
 		}
 		var err = p.db.CreateDevice(d)
 		if err == nil {
@@ -351,6 +352,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			d.HostName = c.PostForm("hostname")
 			d.UserName = c.PostForm("username")
 			d.DeviceName = c.PostForm("devicename")
+			d.Enabled = c.PostForm("enabled") == "true"
 			p.db.UpdateDevice(d)
 		}
 

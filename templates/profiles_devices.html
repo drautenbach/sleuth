@@ -8,6 +8,7 @@
                 <th>Name</th>
                 <th>MAC Address</th>
                 <th>Belongs to</th>
+                <th>Enabled</th>
             </tr>
         </thead>
         <tbody>
@@ -16,6 +17,7 @@
                 <td><a href="device/{{.MACAddress}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{if .DeviceName}}{{.DeviceName}}{{else}}{{.HostName}}{{end}}</td>
                 <td>{{.MACAddress}}</td>
                 <td>{{.UserName}}</td>
+                <td>{{if .Enabled}}Yes{{else}}No{{end}}</td>
             </tr>
             {{end}}
         </tbody>

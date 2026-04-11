@@ -26,6 +26,7 @@ type DeviceProfile struct {
 	DeviceName string
 	HostName   string
 	UserName   string
+	Enabled    bool
 }
 
 type Role struct {

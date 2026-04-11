@@ -24,6 +24,11 @@
                     <label for="hostname">Host Name</label>
                     <input type="text" name="hostname" value="{{.model.Device.HostName}}" required />
                 </div>
+                <!---add block status-->
+                <div class="form-group">
+                    <label for="enabled">Enabled</label>
+                    <sl-switch name="enabled" value="true"{{if .model.Device.Enabled}} checked{{end}}>Enabled</sl-switch>
+                </div>
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
