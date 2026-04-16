@@ -13,12 +13,16 @@ type iptManager struct {
 	ipt *iptables.IPTables
 }
 
-func NewIptablesManager() (FirewallManager, error) {
+func NewIptablesManager() (Firewall, error) {
 	ipt, err := iptables.New()
 	if err != nil {
 		return nil, err
 	}
 	return &iptManager{ipt: ipt}, nil
+}
+
+func (m *iptManager) Name() string {
+	return "iptables"
 }
 
 func (m *iptManager) AddAllowPort(protocol string, port int) error {

@@ -7,18 +7,24 @@ import (
 	"os/exec"
 )
 
-// NewFirewallManager auto-detects nft vs iptables and returns a backend.
-// Returns nil if neither is available.
-func InitFirewall() FirewallManager {
+func InitFirewallManager() FirewallManager {
+	fws := []Firewall{}
+
 	if _, err := exec.LookPath("nft"); err == nil {
 		if m, err := NewNftablesManager(); err == nil {
-			return m
+			fws = append(fws, m)
 		}
 	}
+
 	if _, err := exec.LookPath("iptables"); err == nil {
 		if m, err := NewIptablesManager(); err == nil {
-			return m
+			fws = append(fws, m)
 		}
 	}
-	return nil
+
+	fws = append(fws, SoftwareNAT())
+
+	return FirewallManager{
+		fws: fws,
+	}
 }

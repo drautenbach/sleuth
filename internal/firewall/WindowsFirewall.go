@@ -3,6 +3,10 @@
 
 package firewall
 
-func InitFirewall() FirewallManager {
-	return SoftwareNAT()
+func InitFirewallManager() FirewallManager {
+	fws := []Firewall{}
+	fws = append(fws, SoftwareNAT())
+	return FirewallManager{
+		fws: fws,
+	}
 }

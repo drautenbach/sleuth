@@ -9,16 +9,35 @@ import (
 )
 
 type wcSetup struct {
+	portal *Portal
+}
+
+func (s *wcSetup) render(c *gin.Context, err error) {
+	firewalls := s.portal.fw.AvailableFirewalls()
+	found := false
+	for _, m := range firewalls {
+		if m == s.portal.config.settings.Firewall {
+			found = true
+			break
+		}
+	}
+	if !found {
+		s.portal.config.settings.Firewall = "default"
+	}
+
+	s.portal.server.HTML(c, "settings", gin.H{
+		"model":     s.portal.config.settings,
+		"roles":     s.portal.db.GetRoles(),
+		"firewalls": firewalls,
+		"err":       err,
+	})
 }
 
 func wcSetupInit(p *Portal) *wcSetup {
-	setup := &wcSetup{}
+	setup := &wcSetup{portal: p}
 
 	p.server.router.GET("/settings", func(c *gin.Context) {
-		p.server.HTML(c, "settings", gin.H{
-			"model": p.config.settings,
-			"roles": p.db.GetRoles(),
-		})
+		setup.render(c, nil)
 	})
 
 	p.server.router.POST("/settings", func(c *gin.Context) {
@@ -26,6 +45,8 @@ func wcSetupInit(p *Portal) *wcSetup {
 		if err == nil {
 			p.config.settings.DefaultRole = c.PostForm("default_role")
 			p.config.settings.SelfRegEnabled = c.PostForm("self_reg_enabled") == "on"
+			setfw := c.PostForm("firewall") != p.config.settings.Firewall
+			p.config.settings.Firewall = c.PostForm("firewall")
 
 			// convert int to the enum type stored in p.config.settings.Mode using reflection
 			rv := reflect.ValueOf(&p.config.settings.Mode).Elem()
@@ -37,18 +58,18 @@ func wcSetupInit(p *Portal) *wcSetup {
 			}
 
 			err = p.db.SaveSettings(*p.config.settings)
+
 			if err == nil {
+				if setfw {
+					p.fw.SetActiveFirewall(p.config.settings.Firewall)
+				}
 				c.Redirect(http.StatusSeeOther, "/settings")
 				c.Abort()
 				return
 			}
 		}
 
-		p.server.HTML(c, "settings", gin.H{
-			"model": p.config.settings,
-			"roles": p.db.GetRoles(),
-			"err":   err,
-		})
+		setup.render(c, err)
 	})
 
 	return setup

@@ -21,21 +21,22 @@ import (
 type Portal struct {
 	db      *db.Db
 	network *network.Network
-	fw      firewall.FirewallManager
 	server  WebServer
 	config  GlobalConfiguration
+	fw      firewall.FirewallManager
 }
 
 func InitPortal() *Portal {
 	p := &Portal{
 		db:      db.InitDB("/tmp/sleuth/data/"),
 		network: network.InitNetwork(),
-		fw:      firewall.InitFirewall(),
+		fw:      firewall.InitFirewallManager(),
 	}
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
+	p.fw.SetActiveFirewall(p.config.settings.Firewall)
 
 	wcSystemInit(p)
 	wcSetupInit(p)

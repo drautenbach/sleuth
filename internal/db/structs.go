@@ -39,6 +39,7 @@ type Settings struct {
 	Mode           enumPortalMode
 	DefaultRole    string
 	SelfRegEnabled bool
+	Firewall       string
 }
 
 type enumPortalMode int

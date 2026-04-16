@@ -18,7 +18,11 @@ type nftManager struct {
 	chain *nftables.Chain
 }
 
-func NewNftablesManager() (FirewallManager, error) {
+func (m *nftManager) Name() string {
+	return "nftables"
+}
+
+func NewNftablesManager() (Firewall, error) {
 	c := &nftables.Conn{}
 	// use a dedicated table for the app
 	tbl := c.AddTable(&nftables.Table{

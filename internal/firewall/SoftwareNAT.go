@@ -6,7 +6,7 @@ import (
 	"github.com/KarpelesLab/swnat"
 )
 
-func SoftwareNAT() FirewallManager {
+func SoftwareNAT() Firewall {
 	externalIP := net.ParseIP("203.0.113.1")
 	nat := swnat.NewIPv4(externalIP)
 
@@ -15,6 +15,10 @@ func SoftwareNAT() FirewallManager {
 
 type natManager struct {
 	nat swnat.NAT
+}
+
+func (m *natManager) Name() string {
+	return "software-nat"
 }
 
 // AddAllowPort implements FirewallManager.

@@ -61,6 +61,25 @@
                     {{end}}
 
                 </div>
+                <h3>{{.title}}</h3>
+                <div class="form-group border">
+                    <strong>Firewall</strong>
+
+                    <label for="firewall">Default NAT firewall
+                        <sl-tooltip content="Override firewall used to apply network access policies.">
+                            <sl-icon name="info-circle"></sl-icon>
+                        </sl-tooltip>
+                    </label>
+                    <input type="hidden" id="firewall" name="firewall" value="{{.model.Firewall}}">
+                    <sl-dropdown name="firewall" class="indent">
+                        <sl-button slot="trigger" caret>{{.model.Firewall}}</sl-button>
+                        <sl-menu>
+                        {{range .firewalls}}
+                            <sl-menu-item>{{.}}</sl-menu-item>
+                        {{end}}
+                        </sl-menu>
+                    </sl-dropdown>
+                </div>
         </div>
     </form>
 

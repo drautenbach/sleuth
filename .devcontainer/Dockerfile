@@ -33,3 +33,6 @@ ENV LISTEN_ADDR=0.0.0.0:53
 
 #RUN chmod +x start.sh
 #CMD ["./start.sh"]
+
+
+ 
