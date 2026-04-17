@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sleuth/internal/constants"
 	"sleuth/internal/log"
 	"time"
 
@@ -474,4 +475,161 @@ func (d *Db) DeleteDevice(macAdress string) error {
 		}
 		return nil
 	})
+}
+
+/****   fwdrules     *****/
+
+func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		dnsKey := "dns:" + r.ClientIP + ":" + r.Hostname
+		fwdKey := "fwd:" + r.ClientIP + ":" + r.TempIP
+		dns, err := txn.Get([]byte(dnsKey))
+		if dns != nil {
+			return fmt.Errorf("forward rule %s:%s already exists", r.ClientIP, r.Hostname)
+		}
+
+		fwd, err := txn.Get([]byte(fwdKey))
+		if fwd != nil {
+			return fmt.Errorf("forward rule %s:%s already exists", r.ClientIP, r.TempIP)
+		}
+
+		r.Expires = expires
+		val, err := json.Marshal(r)
+		if err != nil {
+			return err
+		}
+
+		err = txn.SetEntry(badger.NewEntry([]byte(dnsKey), val).WithTTL(time.Until(expires)))
+		if err != nil {
+			panic(err)
+		}
+		err = txn.SetEntry(badger.NewEntry([]byte(fwdKey), val).WithTTL(time.Until(expires)))
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func (d *Db) DeleteFwdRule(r *constants.FwdRule) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		dnsKey := "dns:" + r.ClientIP + ":" + r.Hostname
+		fwdKey := "fwd:" + r.ClientIP + ":" + r.TempIP
+
+		item, err := txn.Get([]byte(dnsKey))
+		if err != nil {
+			return err
+		}
+		if item != nil {
+			err = txn.Delete([]byte(dnsKey))
+			if err != nil {
+				return err
+			}
+		}
+
+		item, err = txn.Get([]byte(fwdKey))
+		if err != nil {
+			return err
+		}
+		if item != nil {
+			err = txn.Delete([]byte(fwdKey))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (d *Db) ExtendFwdRule(r *constants.FwdRule, expires time.Time) error {
+	err := d.DeleteFwdRule(r)
+	if err != nil {
+		return err
+	}
+	err = d.CreateFwdRule(r, expires)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Db) getFwdRuleByKey(key string) *constants.FwdRule {
+	var up constants.FwdRule
+	found := false
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(key))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				// not found, return nil error and let caller receive nil
+				return nil
+			}
+			return err
+		}
+
+		if err := item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &up)
+		}); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		return nil
+	}
+	return &up
+}
+
+func (d *Db) GetFwdRuleByHostname(clientIP string, hostname string) *constants.FwdRule {
+	return d.getFwdRuleByKey("dns:" + clientIP + ":" + hostname)
+}
+
+func (d *Db) GetFwdRuleByIP(clientIP string, tempIP string) *constants.FwdRule {
+	return d.getFwdRuleByKey("fwd:" + clientIP + ":" + tempIP)
+}
+
+func (d *Db) GetFwdRules() []constants.FwdRule {
+	return d.getFwdRulesByKey("fwd:")
+}
+
+func (d *Db) GetFwdRulesForClient(clientIP string) []constants.FwdRule {
+	return d.getFwdRulesByKey("fwd:" + clientIP + ":")
+}
+
+func (d *Db) getFwdRulesByKey(key string) []constants.FwdRule {
+	prefix := []byte(key)
+	var rules []constants.FwdRule
+
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			//k := item.Key()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var up constants.FwdRule
+			if err := json.Unmarshal(v, &up); err != nil {
+				return err
+			}
+			rules = append(rules, up)
+			//log.Infof("Key: %s, Value: %s\n", k, v)
+		}
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	return rules
 }

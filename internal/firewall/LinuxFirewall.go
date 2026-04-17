@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-func InitFirewallManager() FirewallManager {
+func LoadFirewallManager() FirewallManager {
 	fws := []Firewall{}
 
 	if _, err := exec.LookPath("nft"); err == nil {
@@ -18,6 +18,12 @@ func InitFirewallManager() FirewallManager {
 
 	if _, err := exec.LookPath("iptables"); err == nil {
 		if m, err := NewIptablesManager(); err == nil {
+			fws = append(fws, m)
+		}
+	}
+
+	if _, err := exec.LookPath("ebpf"); err == nil {
+		if m, err := eBpfFirewall(); err == nil {
 			fws = append(fws, m)
 		}
 	}

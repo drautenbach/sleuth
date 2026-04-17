@@ -6,19 +6,20 @@ package firewall
 import (
 	"encoding/binary"
 	"fmt"
+	"sleuth/internal/constants"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"golang.org/x/sys/unix"
 )
 
-type nftManager struct {
+type nfTables struct {
 	conn  *nftables.Conn
 	table *nftables.Table
 	chain *nftables.Chain
 }
 
-func (m *nftManager) Name() string {
+func (m *nfTables) Name() string {
 	return "nftables"
 }
 
@@ -42,7 +43,7 @@ func NewNftablesManager() (Firewall, error) {
 	if err := c.Flush(); err != nil {
 		return nil, err
 	}
-	return &nftManager{conn: c, table: tbl, chain: ch}, nil
+	return &nfTables{conn: c, table: tbl, chain: ch}, nil
 }
 
 func protoNum(proto string) (uint8, error) {
@@ -56,7 +57,15 @@ func protoNum(proto string) (uint8, error) {
 	}
 }
 
-func (m *nftManager) AddAllowPort(protocol string, port int) error {
+func (m *nfTables) Init(fwdrules []constants.FwdRule) error {
+	return nil
+}
+
+func (m *nfTables) Close(fwdrules []constants.FwdRule) error {
+	return nil
+}
+
+func (m *nfTables) AddAllowPort(protocol string, port int) error {
 	pnum, err := protoNum(protocol)
 	if err != nil {
 		return err
@@ -86,21 +95,17 @@ func (m *nftManager) AddAllowPort(protocol string, port int) error {
 	return m.conn.Flush()
 }
 
-func (m *nftManager) RemoveAllowPort(protocol string, port int) error {
+func (m *nfTables) RemoveAllowPort(protocol string, port int) error {
 	// For brevity: simplest approach is to flush table and let caller re-add needed rules.
 	// Implementing precise rule deletion requires scanning m.conn.GetRules and matching exprs.
 	return fmt.Errorf("RemoveAllowPort not implemented for nftables backend")
 }
 
-func (m *nftManager) Flush() error {
+func (m *nfTables) Flush() error {
 	// remove table (best-effort)
 	if m.conn == nil || m.table == nil {
 		return nil
 	}
 	m.conn.DelTable(m.table)
 	return m.conn.Flush()
-}
-
-func (m *nftManager) Close() error {
-	return m.Flush()
 }

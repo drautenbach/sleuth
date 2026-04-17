@@ -30,8 +30,9 @@ func InitPortal() *Portal {
 	p := &Portal{
 		db:      db.InitDB("/tmp/sleuth/data/"),
 		network: network.InitNetwork(),
-		fw:      firewall.InitFirewallManager(),
+		fw:      firewall.LoadFirewallManager(),
 	}
+	p.fw.Init(p.db)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),

@@ -4,12 +4,13 @@
 package firewall
 
 import (
+	"sleuth/internal/constants"
 	"strconv"
 
 	"github.com/coreos/go-iptables/iptables"
 )
 
-type iptManager struct {
+type ipTables struct {
 	ipt *iptables.IPTables
 }
 
@@ -18,26 +19,30 @@ func NewIptablesManager() (Firewall, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &iptManager{ipt: ipt}, nil
+	return &ipTables{ipt: ipt}, nil
 }
 
-func (m *iptManager) Name() string {
+func (m *ipTables) Name() string {
 	return "iptables"
 }
 
-func (m *iptManager) AddAllowPort(protocol string, port int) error {
-	return m.ipt.AppendUnique("filter", "INPUT", "-p", protocol, "--dport", strconv.Itoa(port), "-j", "ACCEPT")
-}
-
-func (m *iptManager) RemoveAllowPort(protocol string, port int) error {
-	return m.ipt.Delete("filter", "INPUT", "-p", protocol, "--dport", strconv.Itoa(port), "-j", "ACCEPT")
-}
-
-func (m *iptManager) Flush() error {
-	// best-effort: delete rules we added is safer; here we do nothing.
+func (m *ipTables) Init(fwdrules []constants.FwdRule) error {
 	return nil
 }
 
-func (m *iptManager) Close() error {
+func (m *ipTables) Close(fwdrules []constants.FwdRule) error {
+	return nil
+}
+
+func (m *ipTables) AddAllowPort(protocol string, port int) error {
+	return m.ipt.AppendUnique("filter", "INPUT", "-p", protocol, "--dport", strconv.Itoa(port), "-j", "ACCEPT")
+}
+
+func (m *ipTables) RemoveAllowPort(protocol string, port int) error {
+	return m.ipt.Delete("filter", "INPUT", "-p", protocol, "--dport", strconv.Itoa(port), "-j", "ACCEPT")
+}
+
+func (m *ipTables) Flush() error {
+	// best-effort: delete rules we added is safer; here we do nothing.
 	return nil
 }

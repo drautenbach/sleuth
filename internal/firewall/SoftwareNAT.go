@@ -2,6 +2,7 @@ package firewall
 
 import (
 	"net"
+	"sleuth/internal/constants"
 
 	"github.com/KarpelesLab/swnat"
 )
@@ -21,14 +22,17 @@ func (m *natManager) Name() string {
 	return "software-nat"
 }
 
+func (m *natManager) Init(fwdrules []constants.FwdRule) error {
+	return nil
+}
+
+func (m *natManager) Close(fwdrules []constants.FwdRule) error {
+	return nil
+}
+
 // AddAllowPort implements FirewallManager.
 func (n *natManager) AddAllowPort(protocol string, port int) error {
 	panic("unimplemented")
-}
-
-// Close implements FirewallManager.
-func (n *natManager) Close() error {
-	return nil
 }
 
 // Flush implements FirewallManager.
