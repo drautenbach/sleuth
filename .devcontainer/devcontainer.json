@@ -19,6 +19,9 @@
     "-p", "53:53/tcp",
     "-p", "53:53/udp",
     "--cap-add=SYS_PTRACE",
+    "--cap-add=SYS_ADMIN",  // needed for eBPF
+    "--cap-add=NET_ADMIN",  // needed for eBPF
+    "--privileged",         // needed to act as a router (sysctl -w net.ipv4.ip_forward=1)
     "--security-opt",
     "seccomp=unconfined",
     "-p", "40000:40000/tcp"
