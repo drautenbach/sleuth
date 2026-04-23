@@ -3,6 +3,7 @@ package dns
 import (
 	"os"
 	"runtime/debug"
+	"sleuth/internal/firewall"
 	"testing"
 )
 
@@ -33,7 +34,8 @@ local:
 
 func TestMain(m *testing.M) {
 	GetConfig().ReadConfigData([]byte(configuration))
-	InitDnsServer()
+	fw := firewall.LoadFirewallManager()
+	InitDnsServer(fw)
 	code := m.Run()
 	os.Exit(code)
 }

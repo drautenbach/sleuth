@@ -5,6 +5,7 @@ package firewall
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sleuth/internal/constants"
 
@@ -63,6 +64,14 @@ func (m *nfTables) Init(fwdrules []constants.FwdRule) error {
 
 func (m *nfTables) Close(fwdrules []constants.FwdRule) error {
 	return nil
+}
+
+func (m *nfTables) AddForwardRule(fwdrule *constants.FwdRule) error {
+	return errors.New("Not implemented")
+}
+
+func (m *nfTables) RemoveForwardRule(fwdrule *constants.FwdRule) error {
+	return errors.New("Not implemented")
 }
 
 func (m *nfTables) AddAllowPort(protocol string, port int) error {

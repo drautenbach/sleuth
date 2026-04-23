@@ -11,6 +11,9 @@ type Firewall interface {
 	// Close releases any resources (best-effort).
 	Close(fwdrules []constants.FwdRule) error
 
+	AddForwardRule(fwdrule *constants.FwdRule) error
+	RemoveForwardRule(fwdrule *constants.FwdRule) error
+
 	// AddAllowPort allows inbound traffic for protocol ("tcp"/"udp") on port.
 	AddAllowPort(protocol string, port int) error
 	// RemoveAllowPort removes an allow rule created by AddAllowPort.

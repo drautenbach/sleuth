@@ -1,6 +1,7 @@
 package firewall
 
 import (
+	"errors"
 	"sleuth/internal/constants"
 )
 
@@ -22,6 +23,14 @@ func (m *eBpf) Init(fwdrules []constants.FwdRule) error {
 
 func (m *eBpf) Close(fwdrules []constants.FwdRule) error {
 	return nil
+}
+
+func (m *eBpf) AddForwardRule(fwdrule *constants.FwdRule) error {
+	return errors.New("Not implemented")
+}
+
+func (m *eBpf) RemoveForwardRule(fwdrule *constants.FwdRule) error {
+	return errors.New("Not implemented")
 }
 
 // AddAllowPort implements FirewallManager.

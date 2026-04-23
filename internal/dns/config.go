@@ -43,13 +43,16 @@ func (c *Config) ReadConfig() {
 		os.Exit(1)
 	}
 	configPath = filepath.Join(configPath, "config.yaml")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		log.Error("could not read config yaml from %s\n", configPath)
-		os.Exit(1)
+	_, err = os.Stat(configPath)
+	if err == nil {
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			log.Error("could not read config yaml from %s\n", configPath)
+			os.Exit(1)
+		}
+		c.ReadConfigData(data)
+		c.ReadEnv()
 	}
-	c.ReadConfigData(data)
-	c.ReadEnv()
 }
 
 func (c *Config) ReadConfigData(data []byte) {

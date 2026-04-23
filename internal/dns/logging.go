@@ -3,7 +3,6 @@ package dns
 import (
 	"errors"
 	"log"
-	"net"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -121,6 +120,6 @@ func getQueryTypeUint(qtype string) (uint16, error) {
 	return res, nil
 }
 
-func logQueryResult(source net.Addr, name string, qtype uint16, result string) {
-	log.Printf("Query from %s for %s type %s %s\n", source.String(), name, getQueryTypeText(qtype), result)
+func logQueryResult(source string, name string, qtype uint16, result string) {
+	log.Printf("Query from %s for %s type %s %s\n", source, name, getQueryTypeText(qtype), result)
 }

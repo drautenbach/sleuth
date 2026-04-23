@@ -1,6 +1,7 @@
 package firewall
 
 import (
+	"errors"
 	"net"
 	"sleuth/internal/constants"
 
@@ -28,6 +29,14 @@ func (m *natManager) Init(fwdrules []constants.FwdRule) error {
 
 func (m *natManager) Close(fwdrules []constants.FwdRule) error {
 	return nil
+}
+
+func (m *natManager) AddForwardRule(fwdrule *constants.FwdRule) error {
+	return errors.New("Not implemented")
+}
+
+func (m *natManager) RemoveForwardRule(fwdrule *constants.FwdRule) error {
+	return errors.New("Not implemented")
 }
 
 // AddAllowPort implements FirewallManager.

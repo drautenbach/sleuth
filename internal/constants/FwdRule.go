@@ -3,9 +3,11 @@ package constants
 import "time"
 
 type FwdRule struct {
-	ClientIP string
-	OrigIP   string
-	TempIP   string
-	Hostname string
-	Expires  time.Time
+	ClientIP     string
+	OrigIP       string
+	DestIPOffset uint16
+	Hostname     string
+	QType        uint16
+	CacheExpiry  time.Time
+	DNSExpiry    time.Time
 }

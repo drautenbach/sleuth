@@ -12,7 +12,7 @@ func queryUpstream(name string, qtype uint16) ([]dns.RR, error) {
 	res, err := GetUpstreamCache().Get(name, qtype)
 	if err == nil {
 		// Record found in cache
-		log.Printf("query for %s %s resolved via cache\n", getQueryTypeText(qtype), name)
+		log.Printf("query for %s %s resolved via upstream via upstream cache\n", getQueryTypeText(qtype), name)
 		if len(res) == 0 {
 			return nil, errors.New("record not found via upstream DNS server")
 		}
@@ -33,10 +33,15 @@ func queryUpstream(name string, qtype uint16) ([]dns.RR, error) {
 	for _, server := range GetConfig().UpstreamDNS {
 		in, err := doUpstreamQuery(m1, server)
 		if err == nil {
-			GetUpstreamCache().Set(name, qtype, in.Answer)
-			if len(in.Answer) == 0 {
+			if len(in.Answer) == 0 && len(in.Ns) == 0 {
 				return nil, errors.New("record not found via upstream DNS server")
 			}
+
+			if len(in.Answer) == 0 {
+				return in.Ns, nil
+			}
+
+			GetUpstreamCache().Set(name, qtype, in.Answer)
 			return in.Answer, nil
 		}
 	}

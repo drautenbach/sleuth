@@ -481,29 +481,29 @@ func (d *Db) DeleteDevice(macAdress string) error {
 
 func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
-		dnsKey := "dns:" + r.ClientIP + ":" + r.Hostname
-		fwdKey := "fwd:" + r.ClientIP + ":" + r.TempIP
+		dnsKey := d.dnsKey(r.ClientIP, r.Hostname, r.QType)
+		fwdKey := d.fwdKey(r.ClientIP, r.DestIPOffset, r.QType)
 		dns, err := txn.Get([]byte(dnsKey))
 		if dns != nil {
-			return fmt.Errorf("forward rule %s:%s already exists", r.ClientIP, r.Hostname)
+			return fmt.Errorf("forward rule %s:%d already exists", r.Hostname, r.QType)
 		}
 
 		fwd, err := txn.Get([]byte(fwdKey))
 		if fwd != nil {
-			return fmt.Errorf("forward rule %s:%s already exists", r.ClientIP, r.TempIP)
+			return fmt.Errorf("forward rule %d:%d already exists", r.DestIPOffset, r.QType)
 		}
 
-		r.Expires = expires
+		r.CacheExpiry = time.Now().Add(time.Second * 300)
 		val, err := json.Marshal(r)
 		if err != nil {
 			return err
 		}
 
-		err = txn.SetEntry(badger.NewEntry([]byte(dnsKey), val).WithTTL(time.Until(expires)))
+		err = txn.SetEntry(badger.NewEntry([]byte(dnsKey), val))
 		if err != nil {
 			panic(err)
 		}
-		err = txn.SetEntry(badger.NewEntry([]byte(fwdKey), val).WithTTL(time.Until(expires)))
+		err = txn.SetEntry(badger.NewEntry([]byte(fwdKey), val))
 		if err != nil {
 			panic(err)
 		}
@@ -511,10 +511,18 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 	})
 }
 
+func (d *Db) fwdKey(clientIP string, destIPOffset uint16, qtype uint16) string {
+	return fmt.Sprintf("fwd:%s:%06d:%d", clientIP, destIPOffset, qtype)
+}
+
+func (d *Db) dnsKey(clientIP string, hostname string, qtype uint16) string {
+	return fmt.Sprintf("dns:%s:%s:%d", clientIP, hostname, qtype)
+}
+
 func (d *Db) DeleteFwdRule(r *constants.FwdRule) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
-		dnsKey := "dns:" + r.ClientIP + ":" + r.Hostname
-		fwdKey := "fwd:" + r.ClientIP + ":" + r.TempIP
+		dnsKey := d.dnsKey(r.ClientIP, r.Hostname, r.QType)
+		fwdKey := d.fwdKey(r.ClientIP, r.DestIPOffset, r.QType)
 
 		item, err := txn.Get([]byte(dnsKey))
 		if err != nil {
@@ -585,20 +593,16 @@ func (d *Db) getFwdRuleByKey(key string) *constants.FwdRule {
 	return &up
 }
 
-func (d *Db) GetFwdRuleByHostname(clientIP string, hostname string) *constants.FwdRule {
-	return d.getFwdRuleByKey("dns:" + clientIP + ":" + hostname)
+func (d *Db) GetFwdRuleByHostname(clientIP string, hostname string, qtype uint16) *constants.FwdRule {
+	return d.getFwdRuleByKey(d.dnsKey(clientIP, hostname, qtype))
 }
 
-func (d *Db) GetFwdRuleByIP(clientIP string, tempIP string) *constants.FwdRule {
-	return d.getFwdRuleByKey("fwd:" + clientIP + ":" + tempIP)
+func (d *Db) GetFwdRuleByOffsetIP(clientIP string, qtype uint16, tempIP uint16) *constants.FwdRule {
+	return d.getFwdRuleByKey(d.fwdKey(clientIP, tempIP, qtype))
 }
 
 func (d *Db) GetFwdRules() []constants.FwdRule {
 	return d.getFwdRulesByKey("fwd:")
-}
-
-func (d *Db) GetFwdRulesForClient(clientIP string) []constants.FwdRule {
-	return d.getFwdRulesByKey("fwd:" + clientIP + ":")
 }
 
 func (d *Db) getFwdRulesByKey(key string) []constants.FwdRule {
