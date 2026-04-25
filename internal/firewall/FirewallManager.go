@@ -7,6 +7,7 @@ import (
 	"net"
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
+	"sleuth/internal/security"
 	"time"
 )
 
@@ -15,11 +16,13 @@ type FirewallManager struct {
 	fws     []Firewall
 	fw      Firewall
 	db      *db.Db
+	session *security.Security
 	ip_seed uint16
 }
 
-func (m *FirewallManager) Init(db *db.Db) {
+func (m *FirewallManager) Init(db *db.Db, session *security.Security) {
 	m.db = db
+	m.session = session
 	m.ip_seed = 1
 
 	ticker := time.NewTicker(time.Second * 60)

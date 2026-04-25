@@ -597,8 +597,8 @@ func (d *Db) GetFwdRuleByHostname(clientIP string, hostname string, qtype uint16
 	return d.getFwdRuleByKey(d.dnsKey(clientIP, hostname, qtype))
 }
 
-func (d *Db) GetFwdRuleByOffsetIP(clientIP string, qtype uint16, tempIP uint16) *constants.FwdRule {
-	return d.getFwdRuleByKey(d.fwdKey(clientIP, tempIP, qtype))
+func (d *Db) GetFwdRulesByClient(clientIP string) []constants.FwdRule {
+	return d.getFwdRulesByKey(fmt.Sprintf("fwd:%s:", clientIP))
 }
 
 func (d *Db) GetFwdRules() []constants.FwdRule {
@@ -636,4 +636,95 @@ func (d *Db) getFwdRulesByKey(key string) []constants.FwdRule {
 		panic(err)
 	}
 	return rules
+}
+
+/*             Session                            */
+
+func (d *Db) GetSessions() []Session {
+	prefix := []byte("session:")
+	var sessions []Session
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			//k := item.Key()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var s Session
+			if err := json.Unmarshal(v, &s); err != nil {
+				return err
+			}
+			s.Expiry = time.Unix(int64(item.ExpiresAt()), 0)
+			sessions = append(sessions, s)
+			//log.Infof("Key: %s, Value: %s\n", k, v)
+		}
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	return sessions
+}
+
+func (d *Db) GetSession(IP string) *Session {
+	var s Session
+	found := false
+	key := []byte("session:" + IP)
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				// not found, return nil error and let caller receive nil
+				return nil
+			}
+			return err
+		}
+
+		if err := item.Value(func(val []byte) error {
+			txn.Delete(key)
+			err = txn.SetEntry(badger.NewEntry(key, val).WithTTL(time.Minute * 15))
+			return json.Unmarshal(val, &s)
+		}); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		return nil
+	}
+
+	return &s
+}
+
+func (d *Db) CreateSession(s *Session) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		user, err := txn.Get([]byte("session:" + s.IP))
+		if user != nil {
+			return fmt.Errorf("session for %s already exists", s.IP)
+		}
+
+		key := "user:" + s.IP
+		val, err := json.Marshal(s)
+
+		if err != nil {
+			return err
+		}
+		err = txn.SetEntry(badger.NewEntry([]byte(key), val).WithTTL(time.Minute * 15))
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
 }

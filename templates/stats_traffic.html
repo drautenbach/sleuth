@@ -1,0 +1,36 @@
+{{template "template-start.html" .}}
+
+    <h2>Stats</h2>
+
+    <form>
+
+        <div class="form-group">
+            <label for="ip">IP</label>
+            <sl-input name="ip" value="{{.IP}}" />
+        </div>
+
+        <p>
+            <h4>Traffic</h4>
+            <table border="1" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Temp IP</th>
+                        <th>Host</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .stats}}
+                    <tr>
+                        <td>{{.TempIP}}</td>
+                        <td>{{.Host}}</td>
+                        <td>{{.IP}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </p>
+    </form>
+
+
+{{template "template-end.html" .}}

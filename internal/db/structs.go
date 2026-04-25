@@ -49,3 +49,9 @@ const (
 	ModeAllow                  = 1
 	ModeBlock                  = 0
 )
+
+type Session struct {
+	IP       string
+	Username string
+	Expiry   time.Time
+}

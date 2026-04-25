@@ -14,16 +14,26 @@ import (
 	"sleuth/internal/db"
 	"sleuth/internal/firewall"
 	"sleuth/internal/network"
+	"sleuth/internal/security"
 
 	"github.com/gin-gonic/gin"
 )
 
+type WebControllers struct {
+	System   wcSystem
+	Setup    wcSetup
+	Stats    wcStats
+	Profiles wcProfiles
+}
+
 type Portal struct {
-	db      *db.Db
-	network *network.Network
-	server  WebServer
-	config  GlobalConfiguration
-	fw      firewall.FirewallManager
+	db       *db.Db
+	security *security.Security
+	network  *network.Network
+	server   WebServer
+	config   GlobalConfiguration
+	fw       firewall.FirewallManager
+	wc       WebControllers
 }
 
 func InitPortal() *Portal {
@@ -31,29 +41,26 @@ func InitPortal() *Portal {
 		db:      db.InitDB("/tmp/sleuth/data/"),
 		network: network.InitNetwork(),
 		fw:      firewall.LoadFirewallManager(),
+		wc:      WebControllers{},
 	}
-	p.fw.Init(p.db)
+	p.security = security.InitSession(p.db)
+	p.fw.Init(p.db, p.security)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
 
-	wcSystemInit(p)
-	wcSetupInit(p)
-	wcProfilesInit(p)
+	p.wc.System = *wcSystemInit(p)
+	p.wc.Setup = *wcSetupInit(p)
+	p.wc.Profiles = *wcProfilesInit(p)
+	p.wc.Stats = *wcStatsInit(p)
 	webShellInit(p)
 
 	return p
 }
 
 func (p *Portal) interceptHandler(c *gin.Context) {
-	//ip := clientIP(c.Request)
-	if p.isAllowed(c) {
-		c.Next()
-		return
-	}
-
 	var err error
 	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
 		var action = c.Request.FormValue("sleuth_action")
@@ -97,20 +104,30 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 				} else if u.Password == c.Request.FormValue("password") {
 					token, exp, serr := p.server.CreateSessionToken(u.UserName)
 					if serr == nil {
-						maxAge := int(time.Until(exp).Seconds())
-						c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
-						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-						return
+						if p.security.IsAllowedPortalAccess(u.UserName) {
+							maxAge := int(time.Until(exp).Seconds())
+							c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
+							c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+							return
+						} else {
+							err = fmt.Errorf("access denied")
+						}
+					} else {
+						err = serr
 					}
-					err = serr
 				} else {
-					err = fmt.Errorf("invalid username or password")
+					err = fmt.Errorf("access denied")
 				}
 			} else {
-				err = fmt.Errorf("invalid username or password")
+				err = fmt.Errorf("access denied")
 			}
 		}
 
+	} else {
+		if p.isAllowed(c) {
+			c.Next()
+			return
+		}
 	}
 
 	p.server.HTML(c, "admin_login", gin.H{
@@ -122,7 +139,22 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 
 func (p *Portal) isAllowed(c *gin.Context) bool {
 
-	// 1) Check JWT cookie or Authorization: Bearer token
+	// 1) Static content on the web server should always be allowed
+	if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
+		if c.Request.Method == http.MethodGet {
+			info, err := os.Stat("./www" + c.Request.URL.Path)
+			if info != nil && (os.IsExist(err) || !info.IsDir()) {
+				return true
+			}
+		}
+	}
+
+	ip := clientIP(c.Request)
+	if username, err := p.security.GetSession(ip); err == nil {
+		return p.security.IsAllowedPortalAccess(username)
+	}
+
+	// 2) Check JWT cookie or Authorization: Bearer token
 	var tokenStr string
 	if cookie, err := c.Cookie("sleuth_session"); err == nil {
 		tokenStr = cookie
@@ -132,13 +164,13 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 		}
 	}
 	if tokenStr != "" {
-		if _, err := p.server.ValidateSessionToken(tokenStr); err == nil {
-			return true
+		if token, err := p.server.ValidateSessionToken(tokenStr); err == nil {
+			p.security.CreateSession(ip, token)
+			return p.security.IsAllowedPortalAccess(token)
 		}
 	}
 
-	// 2) Check by MAC address if client is allowed
-	ip := clientIP(c.Request)
+	// 3) Check by MAC address if client is allowed
 	macaddress := network.Search(ip)
 	node := p.network.FindByIP(ip)
 	if node != nil {
@@ -168,17 +200,10 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 				DeviceName: name,
 				HostName:   deviceName,
 			})
+		} else if device.UserName != "" {
+			return p.security.IsAllowedPortalAccess(device.UserName)
 		}
-	}
 
-	// 3) Static content on the web server should always be allowed
-	if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
-		if c.Request.Method == http.MethodGet {
-			info, err := os.Stat("./www" + c.Request.URL.Path)
-			if info != nil && (os.IsExist(err) || !info.IsDir()) {
-				return true
-			}
-		}
 	}
 
 	return false
