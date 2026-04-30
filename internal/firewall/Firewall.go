@@ -13,6 +13,7 @@ type Firewall interface {
 
 	AddForwardRule(fwdrule *constants.FwdRule) error
 	RemoveForwardRule(fwdrule *constants.FwdRule) error
+	GetStats() ([]Stat, error)
 
 	// AddAllowPort allows inbound traffic for protocol ("tcp"/"udp") on port.
 	AddAllowPort(protocol string, port int) error

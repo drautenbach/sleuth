@@ -122,6 +122,19 @@ func (m *ipTables) RemoveForwardRule(fwdrule *constants.FwdRule) error {
 	return nil
 }
 
+func (m *ipTables) GetStats() ([]Stat, error) {
+	stats, _ := m.ipt.StructuredStats("nat", "OUTPUT")
+	output := make([]Stat, 0)
+	for _, stat := range stats {
+		output = append(output, Stat{
+			Source:      *stat.Source,
+			Destination: *stat.Destination,
+			Bytes:       stat.Bytes,
+		})
+	}
+	return output, nil
+}
+
 func (m *ipTables) AddAllowPort(protocol string, port int) error {
 	return m.ipt.AppendUnique("filter", "INPUT", "-p", protocol, "--dport", strconv.Itoa(port), "-j", "ACCEPT")
 }

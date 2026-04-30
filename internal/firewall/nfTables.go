@@ -74,6 +74,10 @@ func (m *nfTables) RemoveForwardRule(fwdrule *constants.FwdRule) error {
 	return errors.New("Not implemented")
 }
 
+func (m *nfTables) GetStats() ([]Stat, error) {
+	return nil, nil
+}
+
 func (m *nfTables) AddAllowPort(protocol string, port int) error {
 	pnum, err := protoNum(protocol)
 	if err != nil {

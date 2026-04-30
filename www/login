@@ -1,1 +1,1 @@
-{{template "templates/admin_login.html"}}
+{{template "templates/portal_login.html"}}

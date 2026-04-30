@@ -33,6 +33,10 @@ func (m *eBpf) RemoveForwardRule(fwdrule *constants.FwdRule) error {
 	return errors.New("Not implemented")
 }
 
+func (m *eBpf) GetStats() ([]Stat, error) {
+	return nil, nil
+}
+
 // AddAllowPort implements FirewallManager.
 func (n *eBpf) AddAllowPort(protocol string, port int) error {
 	return nil

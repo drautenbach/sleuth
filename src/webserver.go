@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-contrib/location/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -36,7 +37,7 @@ func (s *WebServer) HTML(c *gin.Context, path string, obj any) {
 	// create a response map and merge any provided map-like object into it
 	data := gin.H{}
 	if path == "" {
-		path = "admin_index"
+		path = "portal_index"
 	}
 
 	if obj != nil {
@@ -112,18 +113,6 @@ func (s *WebServer) loadMenu(c *gin.Context) gin.H {
 		"hierarchy": hierarchy,
 		"menu":      menu,
 	}
-}
-
-// ServeHTTP is middleware that checks the client IP and redirects
-// to the captive portal when necessary.
-func (s *WebServer) logoutHandler(c *gin.Context) {
-	/*s.mu.Lock()
-	defer s.mu.Unlock()
-	ip := clientIP(c.Request)
-	delete(s.allowed, ip)*/
-
-	c.SetCookie("sleuth_session", "", -1, "/", "", false, true)
-	c.Redirect(http.StatusSeeOther, "/")
 }
 
 func clientIP(r *http.Request) string {
@@ -207,6 +196,7 @@ func (s *WebServer) ValidateSessionToken(tokenStr string) (string, error) {
 	}
 	return username, nil
 }
+
 func initWebServer(ttl time.Duration, h gin.HandlerFunc) *WebServer {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
@@ -218,6 +208,7 @@ func initWebServer(ttl time.Duration, h gin.HandlerFunc) *WebServer {
 		ttl:        ttl,
 		signingKey: []byte(secret),
 	}
+	s.router.Use(location.Default())
 
 	// register template functions before loading templates
 	s.router.SetFuncMap(template.FuncMap{
@@ -233,10 +224,8 @@ func initWebServer(ttl time.Duration, h gin.HandlerFunc) *WebServer {
 		s.router.Use(h)
 	}
 	s.router.Static("/lib", "www/lib")
-	s.router.StaticFile("/login", "www/admin_login")
+	s.router.StaticFile("/login", "www/portal_login")
 	s.router.LoadHTMLGlob("templates/*")
 	s.router.GET("/", s.serveTemplate)
-	s.router.GET("/logout", s.logoutHandler)
-
 	return s
 }

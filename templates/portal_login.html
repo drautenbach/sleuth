@@ -10,6 +10,11 @@
         <div class="login-dialog">
             <h2>Welcome</h2>
                 <input type="hidden" name="sleuth_orig" value="{{.orig}}">
+                {{if eq .portal_address ""}}
+                    <b>Admin Portal</b>
+                {{else}}
+                    <a href="{{.portal_address}}">Admin Portal</a>
+                {{end}}
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required>

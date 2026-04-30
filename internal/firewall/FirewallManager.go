@@ -7,29 +7,32 @@ import (
 	"net"
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
-	"sleuth/internal/security"
 	"time"
 )
+
+type Stat struct {
+	Source      net.IPNet
+	Destination net.IPNet
+	Bytes       uint64
+}
 
 // FirewallManager is a minimal interface for managing firewall rules.
 type FirewallManager struct {
 	fws     []Firewall
 	fw      Firewall
 	db      *db.Db
-	session *security.Security
 	ip_seed uint16
 }
 
-func (m *FirewallManager) Init(db *db.Db, session *security.Security) {
+func (m *FirewallManager) Init(db *db.Db) {
 	m.db = db
-	m.session = session
 	m.ip_seed = 1
 
 	ticker := time.NewTicker(time.Second * 60)
 	go func() {
 		for {
 			<-ticker.C
-			m.RemoveExpiredRules()
+			m.ReviewFwdRules()
 		}
 	}()
 }
@@ -76,7 +79,12 @@ func (m *FirewallManager) SetActiveFirewall(firewall string) {
 	}
 
 	if m.fw != nil {
-		m.fw.Init(rules)
+		for _, r := range rules {
+			if time.Now().After(r.CacheExpiry) || time.Now().After(r.DNSExpiry) {
+				m.db.DeleteFwdRule(&r)
+			}
+		}
+		m.fw.Init(m.db.GetFwdRules())
 	}
 }
 
@@ -106,12 +114,18 @@ func IP4fromOffset(offset uint16) string {
 }
 
 func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32) (string, error) {
+	if ttl < 90 {
+		ttl = 90
+	}
 	r := &constants.FwdRule{
+		Since:     time.Now(),
+		Until:     time.Now(),
 		ClientIP:  clientIP,
 		Hostname:  name,
 		OrigIP:    actualIP,
 		QType:     qtype,
 		DNSExpiry: time.Now().Add(time.Second * time.Duration(ttl)),
+		BytesUsed: 0,
 	}
 	max_len := uint16(65535) //256*256
 	rules := m.db.GetFwdRules()
@@ -132,7 +146,7 @@ func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint1
 	if r.DestIPOffset == 0 {
 		return "", errors.New("no available IP offset")
 	} else {
-		err := m.db.CreateFwdRule(r, time.Now().Add(time.Duration(ttl)*time.Second))
+		err := m.db.CreateFwdRule(r, time.Now().Add(time.Duration(330)*time.Second))
 		if err == nil && m.fw != nil {
 			m.fw.AddForwardRule(r)
 		}
@@ -144,16 +158,45 @@ func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint1
 func (m *FirewallManager) IPCacheLookup(clientIP string, name string, qtype uint16) *constants.FwdRule {
 	r := m.db.GetFwdRuleByHostname(clientIP, name, qtype)
 	if r != nil {
-		m.db.ExtendFwdRule(r, time.Now().Add(time.Second*300))
+		if time.Now().After(r.DNSExpiry) {
+			err := m.fw.RemoveForwardRule(r)
+			if err == nil {
+				m.db.DeleteFwdRule(r)
+			}
+			return nil
+		}
+		m.db.ExtendFwdRule(r, time.Now().Add(time.Second*330))
 	}
 	return r
 }
 
-func (m *FirewallManager) RemoveExpiredRules() {
+func (m *FirewallManager) ReviewFwdRules() {
 	rules := m.db.GetFwdRules()
+
+	if stats, err := m.fw.GetStats(); err == nil {
+		for _, stat := range stats {
+			source := stat.Source.IP.String()
+			destination := stat.Destination.IP.String()
+			if stat.Bytes > 0 {
+				for _, rule := range rules {
+					from := rule.ClientIP
+					to := IP4fromOffset(rule.DestIPOffset)
+					if source == from && destination == to {
+						if stat.Bytes > rule.BytesUsed {
+							rule.BytesUsed = stat.Bytes
+							rule.Until = time.Now()
+							m.db.ExtendFwdRule(&rule, time.Now().Add(time.Second*330))
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
 	now := time.Now()
 	for _, rule := range rules {
-		if rule.DNSExpiry.After(now) || rule.CacheExpiry.After(now) {
+		if now.After(rule.CacheExpiry) {
 			err := m.fw.RemoveForwardRule(&rule)
 			if err == nil {
 				m.db.DeleteFwdRule(&rule)

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -32,6 +33,15 @@ func (d *Db) Close() {
 		d.dbInstance.Close()
 		d.dbInstance = nil
 	}
+}
+
+func generateUID() (string, error) {
+	b := make([]byte, 16) // 16 bytes for a simple UID
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", b), nil
 }
 
 /****   Settings     *****/
@@ -493,7 +503,7 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 			return fmt.Errorf("forward rule %d:%d already exists", r.DestIPOffset, r.QType)
 		}
 
-		r.CacheExpiry = time.Now().Add(time.Second * 300)
+		r.CacheExpiry = expires
 		val, err := json.Marshal(r)
 		if err != nil {
 			return err
@@ -555,11 +565,7 @@ func (d *Db) ExtendFwdRule(r *constants.FwdRule, expires time.Time) error {
 	if err != nil {
 		return err
 	}
-	err = d.CreateFwdRule(r, expires)
-	if err != nil {
-		return err
-	}
-	return nil
+	return d.CreateFwdRule(r, expires)
 }
 
 func (d *Db) getFwdRuleByKey(key string) *constants.FwdRule {
@@ -715,7 +721,7 @@ func (d *Db) CreateSession(s *Session) error {
 			return fmt.Errorf("session for %s already exists", s.IP)
 		}
 
-		key := "user:" + s.IP
+		key := "session:" + s.IP
 		val, err := json.Marshal(s)
 
 		if err != nil {
@@ -727,4 +733,164 @@ func (d *Db) CreateSession(s *Session) error {
 		}
 		return nil
 	})
+}
+
+func (d *Db) DeleteSession(IP string) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		key := "session:" + IP
+
+		item, err := txn.Get([]byte("session:" + IP))
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			return fmt.Errorf("session for %s does not exist", IP)
+		}
+		err = txn.Delete([]byte(key))
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+/***************** CRUD **************************/
+func get[T any](d *Db, key string) *T {
+	var result T
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(key))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				// Return nil error if key not found
+				return nil
+			}
+			return err
+		}
+
+		// Unmarshal the value into the provided type `T`
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &result)
+		})
+	})
+
+	if err != nil {
+		return nil
+	}
+	return &result
+}
+
+func getAll[T any](d *Db, keyprefix string) []T {
+	prefix := []byte(keyprefix)
+	var result []T
+	err := d.dbInstance.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			//k := item.Key()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var up T
+			if err := json.Unmarshal(v, &up); err != nil {
+				return err
+			}
+			result = append(result, up)
+			//log.Infof("Key: %s, Value: %s\n", k, v)
+		}
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
+func create[T any](d *Db, key string, record *T) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		role, err := txn.Get([]byte(key))
+		if role != nil {
+			return fmt.Errorf("record %s already exists", key)
+		}
+
+		val, err := json.Marshal(record)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func update[T any](d *Db, key string, record *T) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		role, err := txn.Get([]byte(key))
+		if role == nil {
+			return fmt.Errorf("record %s does not exists", key)
+		}
+
+		val, err := json.Marshal(record)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+func delete(d *Db, key string) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(key))
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			return fmt.Errorf("record %s does not exist", key)
+		}
+		err = txn.Delete([]byte(key))
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
+/***************** DNS Config - Category **************************/
+
+func (d *Db) GetDNSCategory(categoryid string) *DNSCategory {
+	return get[DNSCategory](d, fmt.Sprintf("dnscategory:%s", categoryid))
+}
+
+func (d *Db) GetDNSCategories() []DNSCategory {
+	return getAll[DNSCategory](d, "dnscategory:")
+}
+
+func (d *Db) CreateDNSCategory(c *DNSCategory) error {
+	if c.CategoryId == "" {
+		id, err := generateUID()
+		if err != nil {
+			return err
+		}
+		c.CategoryId = id
+	}
+	return create(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c)
+}
+
+func (d *Db) UpdateDNSCategory(c *DNSCategory) error {
+	return update(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c)
+}
+
+func (d *Db) DeleteDNSCategory(categoryid string) error {
+	return delete(d, fmt.Sprintf("dnscategory:%s", categoryid))
 }

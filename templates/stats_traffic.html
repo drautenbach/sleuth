@@ -14,17 +14,23 @@
             <table border="1" cellspacing="0">
                 <thead>
                     <tr>
+                        <th>Since</th>
                         <th>Temp IP</th>
                         <th>Host</th>
                         <th>IP</th>
+                        <th>Bytes</th>
+                        <th>Duration</th>
                     </tr>
                 </thead>
                 <tbody>
                     {{range .stats}}
                     <tr>
+                        <td>{{.Since}}</td>
                         <td>{{.TempIP}}</td>
                         <td>{{.Host}}</td>
                         <td>{{.IP}}</td>
+                        <td>{{.Bytes}}</td>
+                        <td>{{.Duration}}</td>
                     </tr>
                     {{end}}
                 </tbody>

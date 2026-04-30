@@ -21,11 +21,26 @@ func (s *Security) GetSession(IP string) (string, error) {
 	return "", fmt.Errorf("session does not exist")
 }
 
+func (s *Security) ClearSession(IP string) error {
+	return s.db.DeleteSession(IP)
+}
+
 func (s *Security) CreateSession(IP string, Username string) {
 	s.db.CreateSession(&db.Session{
 		IP:       IP,
 		Username: Username,
 	})
+}
+
+func (s *Security) IsAllowedAccess(IP string) bool {
+	sess := s.db.GetSessions()
+	fmt.Print(sess)
+	if session := s.db.GetSession(IP); session != nil {
+		if user := s.db.GetUser(session.Username); user != nil && user.Enabled {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Security) IsAllowedPortalAccess(Username string) bool {

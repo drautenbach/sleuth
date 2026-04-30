@@ -6,24 +6,28 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"sleuth/internal/db"
+	"sleuth/internal/dns"
 	"sleuth/internal/firewall"
 	"sleuth/internal/network"
 	"sleuth/internal/security"
 
+	"github.com/gin-contrib/location/v2"
 	"github.com/gin-gonic/gin"
 )
 
 type WebControllers struct {
-	System   wcSystem
-	Setup    wcSetup
-	Stats    wcStats
-	Profiles wcProfiles
+	System    wcSystem
+	Setup     wcSetup
+	Stats     wcStats
+	Profiles  wcProfiles
+	DNSConfig wcDnsConfig
 }
 
 type Portal struct {
@@ -44,8 +48,9 @@ func InitPortal() *Portal {
 		wc:      WebControllers{},
 	}
 	p.security = security.InitSession(p.db)
-	p.fw.Init(p.db, p.security)
+	p.fw.Init(p.db)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
+
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
@@ -55,6 +60,14 @@ func InitPortal() *Portal {
 	p.wc.Setup = *wcSetupInit(p)
 	p.wc.Profiles = *wcProfilesInit(p)
 	p.wc.Stats = *wcStatsInit(p)
+	p.wc.DNSConfig = *wcDnsConfigInit(p)
+
+	p.server.router.GET("/logout", func(c *gin.Context) {
+		p.security.ClearSession(clientIP(c.Request))
+		c.SetCookie("sleuth_session", "", -1, "/", "", false, true)
+		c.Redirect(http.StatusSeeOther, "/")
+	})
+
 	webShellInit(p)
 
 	return p
@@ -62,6 +75,26 @@ func InitPortal() *Portal {
 
 func (p *Portal) interceptHandler(c *gin.Context) {
 	var err error
+
+	is_portal := true
+	ip := clientIP(c.Request)
+	if_ip, _ := dns.GetInterfaceIP(ip)
+	session, _ := p.security.GetSession(ip)
+	if loc := location.Get(c); loc != nil && loc.Host != "cp.local" {
+		host_parts := strings.Split(loc.Host, ".")
+		if len(host_parts) > 1 {
+			if host_parts[len(host_parts)-2] == "cp" && session != "" {
+				c.Redirect(302, "http://"+strings.Join(host_parts[:len(host_parts)-2], ".")+c.Request.URL.Path+"?"+c.Request.URL.RawQuery)
+				return
+			}
+			if host_parts[len(host_parts)-2] != "cp" && session == "" && net.ParseIP(loc.Host) == nil {
+				c.Redirect(302, "http://"+loc.Host+".cp.local"+c.Request.URL.Path+"?"+c.Request.URL.RawQuery)
+				return
+			}
+			is_portal = host_parts[len(host_parts)-2] != "cp"
+		}
+	}
+
 	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
 		var action = c.Request.FormValue("sleuth_action")
 		switch action {
@@ -102,6 +135,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					c.Abort()
 					return
 				} else if u.Password == c.Request.FormValue("password") {
+					p.security.CreateSession(clientIP(c.Request), u.UserName)
 					token, exp, serr := p.server.CreateSessionToken(u.UserName)
 					if serr == nil {
 						if p.security.IsAllowedPortalAccess(u.UserName) {
@@ -123,16 +157,24 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 			}
 		}
 
-	} else {
-		if p.isAllowed(c) {
-			c.Next()
-			return
-		}
+	} else if p.isAllowed(c) {
+		c.Next()
+		return
 	}
 
-	p.server.HTML(c, "admin_login", gin.H{
-		"next":  c.Query("next"),
-		"error": err,
+	portal_address := ""
+	if !is_portal {
+		if if_ip != "" {
+			portal_address = "http://" + if_ip
+		} else {
+			portal_address = "http://127.0.0.1"
+		}
+	}
+	p.server.HTML(c, "portal_login", gin.H{
+		"next":           c.Query("next"),
+		"ip":             ip,
+		"portal_address": portal_address,
+		"error":          err,
 	})
 	c.Abort()
 }
@@ -140,14 +182,14 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 func (p *Portal) isAllowed(c *gin.Context) bool {
 
 	// 1) Static content on the web server should always be allowed
-	if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
-		if c.Request.Method == http.MethodGet {
-			info, err := os.Stat("./www" + c.Request.URL.Path)
-			if info != nil && (os.IsExist(err) || !info.IsDir()) {
-				return true
-			}
+	//if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
+	if c.Request.Method == http.MethodGet {
+		info, err := os.Stat("./www" + c.Request.URL.Path)
+		if info != nil && (os.IsExist(err) || !info.IsDir()) {
+			return true
 		}
 	}
+	//}
 
 	ip := clientIP(c.Request)
 	if username, err := p.security.GetSession(ip); err == nil {

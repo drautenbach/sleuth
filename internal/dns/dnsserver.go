@@ -6,13 +6,15 @@ import (
 	"log"
 	"net"
 	"sleuth/internal/firewall"
+	"sleuth/internal/security"
 	"strings"
 
 	"github.com/miekg/dns"
 )
 
 type DnsServer struct {
-	fw firewall.FirewallManager
+	fw       firewall.FirewallManager
+	security security.Security
 }
 
 func (s *DnsServer) parseQuery(source net.Addr, m *dns.Msg) {
@@ -50,7 +52,7 @@ func (s *DnsServer) processDnsResponse(arr []dns.RR, source string) []dns.RR {
 						// Handle error, perhaps skip or log
 						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
 					}
-					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN A %s", rr.Header().Name, ttl, allocatedIP))
+					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN A %s", rr.Header().Name, 60 /*ttl*/, allocatedIP))
 					resp = append(resp, newRR)
 					ip4_found = true
 				}
@@ -66,7 +68,64 @@ func (s *DnsServer) processDnsResponse(arr []dns.RR, source string) []dns.RR {
 	return arr
 }
 
+func GetInterfaceIP(remoteAddr string) (string, error) {
+
+	// Get a list of all network interfaces
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", fmt.Errorf("error getting interfaces: %v", err)
+	}
+
+	// Iterate through the interfaces to find the matching IP address
+	for _, iface := range interfaces {
+		// Skip loopback interfaces
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		// Get the list of addresses for the interface
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		// Check each address
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if ok && ipNet.IP.String() == remoteAddr {
+				// Found the matching IP
+				return ipNet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no matching IP found for remoteAddr: %s", remoteAddr)
+}
+
+func createLocalResponse(name string, source string) dns.RR {
+	ip, err := GetInterfaceIP(source)
+	if err == nil {
+		rr, _ := dns.NewRR(fmt.Sprintf("%s 1 IN %s %s", name, "A", ip))
+		return rr
+	}
+	rr, _ := dns.NewRR(fmt.Sprintf("%s 1 IN %s %s", name, "A", "127.0.0.1"))
+	return rr
+}
+
 func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string) ([]dns.RR, int) {
+	arr := make([]dns.RR, 0)
+
+	parts := strings.Split(name, ".")
+	if len(parts) > 2 && parts[len(parts)-2] == "local" {
+		arr = append(arr, createLocalResponse(name, source))
+		return arr, dns.RcodeSuccess
+	}
+
+	if !s.security.IsAllowedAccess(source) {
+		arr = append(arr, createLocalResponse(name, source))
+		return arr, dns.RcodeSuccess
+	}
+
 	arr, err := queryLocal(name, qtype)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved as local address")
@@ -105,9 +164,10 @@ func (s *DnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.Close()
 }
 
-func InitDnsServer(fw firewall.FirewallManager) *DnsServer {
+func InitDnsServer(fw firewall.FirewallManager, security *security.Security) *DnsServer {
 	s := &DnsServer{
-		fw: fw,
+		fw:       fw,
+		security: *security,
 	}
 	GetConfig().ReadConfig()
 	GetConfig().Print()

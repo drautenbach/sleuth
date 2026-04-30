@@ -1,0 +1,21 @@
+{{template "template-start.html" .}}
+
+    <span class="right"><sl-icon-button name="plus-square" href="categories/new"></sl-icon></span>
+    <h2>DNS Categories</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th>Category</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Categories}}
+            <tr>
+                <td><a href="category/{{.CategoryId}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{.CategoryName}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+
+{{template "template-end.html" .}}

@@ -32,6 +32,13 @@
             ] }
         ]
     },
+    {
+        "name": "DNS Config",
+        "items": [
+             { "name": "Categories", "href": "/dnsconfig/categories" },
+             { "name": "Rule Sets", "href": "/dnsconfig/rulesets" }
+        ]
+    },
     {   "name": "System",
         "href": "/system",
         "items": [

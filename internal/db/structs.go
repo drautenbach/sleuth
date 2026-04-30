@@ -55,3 +55,16 @@ type Session struct {
 	Username string
 	Expiry   time.Time
 }
+
+type DNSCategory struct {
+	CategoryId   string
+	CategoryName string
+}
+
+type DNSRuleSet struct {
+	RuleSetId  string
+	CategoryId string
+	Source     string
+	Schedule   string
+	Rules      []string
+}

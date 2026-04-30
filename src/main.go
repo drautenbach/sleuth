@@ -10,7 +10,7 @@ func main() {
 	log.Info("Starting Sleuth %s...\n", AppVersion)
 
 	p := InitPortal()
-	d := dns.InitDnsServer(p.fw)
+	d := dns.InitDnsServer(p.fw, p.security)
 
 	if len(p.db.GetRoles()) == 0 {
 		r := &db.Role{
@@ -46,7 +46,7 @@ func main() {
 	}
 	defer p.db.Close()
 	// start HTTP and DNS servers concurrently and keep main alive
-	go p.server.router.Run("0.0.0.0:8080")
+	go p.server.router.Run("0.0.0.0:80")
 	go d.Start()
 	select {}
 }

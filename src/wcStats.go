@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sleuth/internal/constants"
 	"sleuth/internal/firewall"
 
@@ -12,9 +13,12 @@ type wcStats struct {
 }
 
 type trafficStat struct {
-	Host   string
-	IP     string
-	TempIP string
+	Since    string
+	Host     string
+	IP       string
+	TempIP   string
+	Bytes    uint64
+	Duration string
 }
 
 func (s *wcStats) GetTrafficStats(ip string) []trafficStat {
@@ -25,10 +29,18 @@ func (s *wcStats) GetTrafficStats(ip string) []trafficStat {
 
 	var result []trafficStat
 	for _, fr := range stats {
+		duration := fr.Until.Sub(fr.Since)
+		hours := int(duration.Hours())
+		minutes := int(duration.Minutes()) % 60
+		seconds := int(duration.Seconds()) % 60
+
 		neighbour := trafficStat{
-			Host:   fr.Hostname,
-			IP:     fr.OrigIP,
-			TempIP: firewall.IP4fromOffset(fr.DestIPOffset),
+			Since:    fr.Since.Format("2006-01-02 15:04:05"),
+			Host:     fr.Hostname,
+			IP:       fr.OrigIP,
+			TempIP:   firewall.IP4fromOffset(fr.DestIPOffset),
+			Bytes:    fr.BytesUsed,
+			Duration: fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds),
 		}
 		result = append(result, neighbour)
 	}

@@ -39,6 +39,10 @@ func (m *natManager) RemoveForwardRule(fwdrule *constants.FwdRule) error {
 	return errors.New("Not implemented")
 }
 
+func (m *natManager) GetStats() ([]Stat, error) {
+	return nil, nil
+}
+
 // AddAllowPort implements FirewallManager.
 func (n *natManager) AddAllowPort(protocol string, port int) error {
 	panic("unimplemented")
