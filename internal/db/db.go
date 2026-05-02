@@ -495,7 +495,7 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 		fwdKey := d.fwdKey(r.ClientIP, r.DestIPOffset, r.QType)
 		dns, err := txn.Get([]byte(dnsKey))
 		if dns != nil {
-			return fmt.Errorf("forward rule %s:%d already exists", r.Hostname, r.QType)
+			return fmt.Errorf("dns rule %s:%d already exists", r.Hostname, r.QType)
 		}
 
 		fwd, err := txn.Get([]byte(fwdKey))

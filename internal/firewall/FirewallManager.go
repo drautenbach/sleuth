@@ -165,7 +165,7 @@ func (m *FirewallManager) IPCacheLookup(clientIP string, name string, qtype uint
 			}
 			return nil
 		}
-		m.db.ExtendFwdRule(r, time.Now().Add(time.Second*330))
+		m.db.ExtendFwdRule(r, time.Now().Add(time.Second*630))
 	}
 	return r
 }
@@ -174,18 +174,18 @@ func (m *FirewallManager) ReviewFwdRules() {
 	rules := m.db.GetFwdRules()
 
 	if stats, err := m.fw.GetStats(); err == nil {
-		for _, stat := range stats {
-			source := stat.Source.IP.String()
-			destination := stat.Destination.IP.String()
-			if stat.Bytes > 0 {
+		for i := range stats {
+			source := stats[i].Source.IP.String()
+			destination := stats[i].Destination.IP.String()
+			if stats[i].Bytes > 0 {
 				for _, rule := range rules {
 					from := rule.ClientIP
 					to := IP4fromOffset(rule.DestIPOffset)
 					if source == from && destination == to {
-						if stat.Bytes > rule.BytesUsed {
-							rule.BytesUsed = stat.Bytes
+						if stats[i].Bytes > rule.BytesUsed {
+							rule.BytesUsed = stats[i].Bytes
 							rule.Until = time.Now()
-							m.db.ExtendFwdRule(&rule, time.Now().Add(time.Second*330))
+							m.db.ExtendFwdRule(&rule, time.Now().Add(time.Second*630))
 							break
 						}
 					}
@@ -195,11 +195,11 @@ func (m *FirewallManager) ReviewFwdRules() {
 	}
 
 	now := time.Now()
-	for _, rule := range rules {
-		if now.After(rule.CacheExpiry) {
-			err := m.fw.RemoveForwardRule(&rule)
+	for i := range rules {
+		if now.After(rules[i].CacheExpiry) {
+			err := m.fw.RemoveForwardRule(&rules[i])
 			if err == nil {
-				m.db.DeleteFwdRule(&rule)
+				m.db.DeleteFwdRule(&rules[i])
 			}
 		}
 	}

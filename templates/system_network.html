@@ -42,7 +42,7 @@
                 {{range .model.nodes}}
                 <tr>
                     <td><a href="../profiles/device/{{.Mac}}"><wa-icon name="pencil-square" title="{{.DeviceTitle}}"></wa-icon></a>&nbsp;{{.DeviceName}}</td>
-                    <td>{{.IP}}</td>
+                    <td><a href="../stats/traffic/{{.IP}}"><wa-icon name="traffic-light" title="Current Traffic"></wa-icon></a>{{.IP}}</td>
                     <td>{{.Mac}}</td>
                     <td>{{.LastSeen}}</td>
                     <td>{{.Dns}}</td>

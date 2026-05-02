@@ -40,24 +40,25 @@ func (s *DnsServer) processDnsResponse(arr []dns.RR, source string) []dns.RR {
 		resp := []dns.RR{}
 		ip4_found := false
 
-		for _, rr := range arr {
-			if rr.Header().Rrtype == dns.TypeA {
+		for i := range arr {
+			header := arr[i].Header()
+			if header.Rrtype == dns.TypeA {
 				if !ip4_found {
-					a := rr.(*dns.A)
+					a := arr[i].(*dns.A)
 					actualIP := a.A.String()
-					ttl := rr.Header().Ttl
-					qtype := rr.Header().Rrtype
-					allocatedIP, err := s.fw.AllocateIPv4(source, rr.Header().Name, qtype, actualIP, ttl)
+					ttl := header.Ttl
+					qtype := arr[i].Header().Rrtype
+					allocatedIP, err := s.fw.AllocateIPv4(source, header.Name, qtype, actualIP, ttl)
 					if err != nil {
 						// Handle error, perhaps skip or log
 						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
 					}
-					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN A %s", rr.Header().Name, 60 /*ttl*/, allocatedIP))
+					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN A %s", header.Name, 60 /*ttl*/, allocatedIP))
 					resp = append(resp, newRR)
 					ip4_found = true
 				}
 			} else {
-				resp = append(resp, rr)
+				resp = append(resp, arr[i])
 			}
 		}
 
