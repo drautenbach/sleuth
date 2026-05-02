@@ -128,7 +128,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 	/**** RuleSets ****/
 
-	p.server.router.GET("/dnsconfig/rulesets", func(c *gin.Context) {
+	rulesets := func(c *gin.Context, err error) {
 		categories := p.db.GetDNSCategories()
 		categoryMap := make(map[string]string)
 		for _, category := range categories {
@@ -159,8 +159,36 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		p.server.HTML(c, "dnsconfig_rulesets", gin.H{
 			"model": gin.H{
 				"RuleSets": rulesets,
+				"error":    err,
 			},
 		})
+	}
+
+	p.server.router.GET("/dnsconfig/rulesets", func(c *gin.Context) { rulesets(c, nil) })
+
+	p.server.router.POST("/dnsconfig/rulesets", func(c *gin.Context) {
+		rulesetid := c.Request.FormValue("RuleSetId")
+		if rulesetid == "" {
+			rsets := p.db.GetDNSRuleSets()
+			for i := range rsets {
+				if rsets[i].Enabled && rsets[i].Source != "" {
+					err := p.security.UpdateRuleSet(rsets[i])
+					if err != nil {
+						rulesets(c, err)
+						return
+					}
+
+				}
+			}
+			rulesets(c, nil)
+		} else {
+			rs := p.db.GetDNSRuleSet(rulesetid)
+			if rs == nil {
+				rulesets(c, fmt.Errorf("Ruleset %s not found", c.Request.FormValue("RuleSetId")))
+			} else {
+				rulesets(c, p.security.UpdateRuleSet(*rs))
+			}
+		}
 	})
 
 	p.server.router.GET("/dnsconfig/rulesets/new", func(c *gin.Context) {

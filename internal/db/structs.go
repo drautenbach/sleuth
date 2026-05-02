@@ -72,4 +72,5 @@ type DNSRuleSet struct {
 	Schedule    string
 	Rules       []string
 	Enabled     bool
+	LastUpdated time.Time
 }

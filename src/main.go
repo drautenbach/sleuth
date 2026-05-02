@@ -210,7 +210,7 @@ func initDefaults(p *Portal) {
 			Source:      "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/nrd7.txt",
 			Schedule:    "0 23 * * *",
 			Rules:       make([]string, 0),
-			Enabled:     true,
+			Enabled:     false,
 			External:    true,
 		})
 
@@ -222,7 +222,7 @@ func initDefaults(p *Portal) {
 			Source:      "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/nrd14-8.txt",
 			Schedule:    "0 23 * * *",
 			Rules:       make([]string, 0),
-			Enabled:     true,
+			Enabled:     false,
 			External:    true,
 		})
 
@@ -234,7 +234,7 @@ func initDefaults(p *Portal) {
 			Source:      "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/nrd21-15.txt",
 			Schedule:    "0 23 * * *",
 			Rules:       make([]string, 0),
-			Enabled:     true,
+			Enabled:     false,
 			External:    true,
 		})
 
@@ -246,7 +246,7 @@ func initDefaults(p *Portal) {
 			Source:      "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/nrd28-22.txt",
 			Schedule:    "0 23 * * *",
 			Rules:       make([]string, 0),
-			Enabled:     true,
+			Enabled:     false,
 			External:    true,
 		})
 
@@ -258,7 +258,7 @@ func initDefaults(p *Portal) {
 			Source:      "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/nrd35-29.txt",
 			Schedule:    "0 23 * * *",
 			Rules:       make([]string, 0),
-			Enabled:     true,
+			Enabled:     false,
 			External:    true,
 		})
 

@@ -1,6 +1,14 @@
 {{template "template-start.html" .}}
 
-    <span class="right"><wa-button href="rulesets/new" style="font-size: 10px;"><wa-icon name="plus"></wa-icon></wa-button></span>
+    <form method="POST">
+        <span class="right">
+        <nobr>
+            <wa-button size="xs" name="refresh" type="submit" title="Refresh all"><wa-icon name="refresh"></wa-icon></wa-button>
+            <wa-button size="xs" href="rulesets/new"><wa-icon name="plus"></wa-icon></wa-button>
+        </nobr>
+        </span>
+    </form>
+    
     <h2>DNS Rule Sets</h2>
     <table border="1" cellspacing="0" cellpadding="0">
         <thead>
@@ -10,6 +18,8 @@
                 <th>RuleSet</th>
                 <th>Description</th>
                 <th>Schedule</th>
+                <th>Records</th>
+                <th>Last Updated</th>
                 <th></th>
             </tr>
         </thead>
@@ -21,11 +31,23 @@
                 <td>{{if (eq .Source "")}}{{.RuleSetName}}{{else}}<a href="{{.Source}}" target="_blank">{{.RuleSetName}}</a>{{end}}</td>
                 <td>{{.Description}}</td>
                 <td>{{.Schedule}}</td>
-                <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
+                <td>{{len .Rules}}</td>
+                <td>{{.LastUpdated}}</td>
+                <td>
+                    <form method="POST">
+                        <nobr>
+                            <input type="hidden" name="RuleSetId" value="{{.RuleSetId}}" />
+                            <wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch>
+                            <wa-button size="xs" name="refresh" type="submit"><wa-icon name="refresh"></wa-icon></wa-button>
+                        </nobr>
+                    </form>
+                </td>
             </tr>
             {{end}}
         </tbody>
     </table>
+
+    <p><label class="error-message">{{.model.error}}</label></p>
 
 
 {{template "template-end.html" .}}
