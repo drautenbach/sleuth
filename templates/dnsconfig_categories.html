@@ -1,6 +1,6 @@
 {{template "template-start.html" .}}
 
-    <span class="right"><sl-icon-button name="plus-square" href="categories/new"></sl-icon></span>
+    <span class="right"><wa-icon-button name="plus-square" href="categories/new"></wa-icon></span>
     <h2>DNS Categories</h2>
     <table border="1" cellspacing="0" cellpadding="0">
         <thead>
@@ -13,9 +13,9 @@
         <tbody>
             {{range .model.Categories}}
             <tr>
-                <td><a href="category/{{.CategoryId}}"><sl-icon name="pencil-square"></sl-icon></a></td>
+                <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
                 <td>{{.CategoryName}}</td>
-                <td><sl-switch size="small" disabled {{if .Enabled}}checked{{end}}></sl-switch></td>
+                <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
             </tr>
             {{end}}
         </tbody>

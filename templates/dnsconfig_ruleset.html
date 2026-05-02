@@ -10,21 +10,21 @@
 
                 <div class="form-group">
                     <label>Category</label>
-                    <sl-select name="categoryid" value="{{.model.RuleSet.CategoryId}}" required>
+                    <wa-select name="categoryid" value="{{.model.RuleSet.CategoryId}}" required>
                         {{range .model.Categories}}
-                            <sl-option value="{{.CategoryId}}">{{.CategoryName}}</sl-option>
+                            <wa-option value="{{.CategoryId}}">{{.CategoryName}}</wa-option>
                         {{end}}
-                    <sl-select>
+                    <wa-select>
                 </div>
 
                 <div class="form-group">
                     <label for="enabled">Enabled</label>
-                    <sl-switch id="enabled" name="enabled" {{if .model.RuleSet.Enabled}}checked{{end}}>Enabled</sl-switch>
+                    <wa-switch id="enabled" name="enabled" {{if .model.RuleSet.Enabled}}checked{{end}}>Enabled</wa-switch>
                 </div>
 
                 <div class="form-group">
                     <label for="external">Update Source</label>
-                    <sl-switch id="source_external" name="external" {{if .model.RuleSet.External}}checked{{end}}>External (web)</sl-switch>
+                    <wa-switch id="source_external" name="external" {{if .model.RuleSet.External}}checked{{end}}>External (web)</wa-switch>
                 </div>
 
                 <div id="divSource" class="form-group {{if not .model.RuleSet.External}}hidden{{end}}">
@@ -39,12 +39,12 @@
                 
                 <p><div class="error-message">{{.error}}</div></p>
                 <div class="button-group">
-                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}"><sl-icon name="save" slot="prefix"></sl-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
-                    <sl-button variant="default" href="../rulesets" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>
+                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save" slot="prefix"></wa-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+                    <wa-button variant="default" href="../rulesets" outline><wa-icon name="arrow-return-left" slot="prefix"></wa-icon>Cancel</wa-button>
 
                     {{if eq $.action "edit"}}
                         <span class="right">
-                            <sl-button href="../rulesets/delete/{{.model.RuleSet.RuleSetId}}" variant="danger" outline><sl-icon name="person-dash" slot="prefix"></sl-icon>Delete</sl-button>
+                            <wa-button href="../rulesets/delete/{{.model.RuleSet.RuleSetId}}" variant="danger" outline><wa-icon name="person-dash" slot="prefix"></wa-icon>Delete</wa-button>
                         </span>
                     {{end}}
                 </div>                    

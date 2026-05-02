@@ -2,16 +2,16 @@
 
     <h2>Users</h2>
 
-    <sl-tab-group>
-        <sl-tab slot="nav" panel="local-users">Local Users</sl-tab>
-        <sl-tab slot="nav" panel="remote-users">Remote Users</sl-tab>
-        <sl-tab-panel name="local-users">
+    <wa-tab-group>
+        <wa-tab slot="nav" panel="local-users">Local Users</wa-tab>
+        <wa-tab slot="nav" panel="remote-users">Remote Users</wa-tab>
+        <wa-tab-panel name="local-users">
             <h2>Local Users</h2>
                 {{ if .model.LocalUsersError }}
-                <sl-alert variant="danger" open>
-                <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+                <wa-alert variant="danger" open>
+                <wa-icon slot="icon" name="exclamation-octagon"></wa-icon>
                 <strong>{{.model.LocalUsersError}}</strong><br />
-                </sl-alert>
+                </wa-alert>
                 {{ end }}
                 
             <p>
@@ -34,11 +34,11 @@
                     </tbody>
                 </table>
             </p>
-        </sl-tab-panel> 
-        <sl-tab-panel name="remote-users">
+        </wa-tab-panel> 
+        <wa-tab-panel name="remote-users">
             <h2>Remote Users</h2>
             <p>Todo</p>
-        </sl-tab-panel>
-    </sl-tab-group>
+        </wa-tab-panel>
+    </wa-tab-group>
 
 {{template "template-end.html" .}}

@@ -24,13 +24,13 @@
                     <input type="password" id="password" name="password" required>
                 </div>
                 <div class="button-group">
-                    <sl-button variant="primary" type="submit" name="sleuth_action" value="login">Login</sl-button>
+                    <wa-button variant="primary" type="submit" name="sleuth_action" value="login">Login</wa-button>
                 </div>
         </div>
                 {{if .error}}
-                    <sl-alert variant="danger" open>
+                    <wa-alert variant="danger" open>
                         {{.error}}
-                    </sl-alert>
+                    </wa-alert>
                 {{end}}
 
             </form>

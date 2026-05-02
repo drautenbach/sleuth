@@ -13,12 +13,12 @@
                 </div>
                 <div class="form-group">
                     <label for="username">Belongs to</label>
-                    <sl-select name="username" value="{{.model.Device.UserName}}">
-                        <sl-option value="">(Shared device)</sl-option>
+                    <wa-select name="username" value="{{.model.Device.UserName}}">
+                        <wa-option value="">(Shared device)</wa-option>
                         {{range .model.Users}}
-                            <sl-option value="{{.UserName}}">{{.FullName}} ({{.UserName}})</sl-option>
+                            <wa-option value="{{.UserName}}">{{.FullName}} ({{.UserName}})</wa-option>
                         {{end}}
-                    </sl-select>
+                    </wa-select>
                 </div>
                 <div class="form-group">
                     <label for="hostname">Host Name</label>
@@ -27,17 +27,17 @@
                 <!---add block status-->
                 <div class="form-group">
                     <label for="enabled">Enabled</label>
-                    <sl-switch name="enabled" value="true"{{if .model.Device.Enabled}} checked{{end}}>Enabled</sl-switch>
+                    <wa-switch name="enabled" value="true"{{if .model.Device.Enabled}} checked{{end}}>Enabled</wa-switch>
                 </div>
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
-                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}"><sl-icon name="save" slot="prefix"></sl-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
-                    <sl-button variant="default" href="../devices" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>
+                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save" slot="prefix"></wa-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+                    <wa-button variant="default" href="../devices" outline><wa-icon name="arrow-return-left" slot="prefix"></wa-icon>Cancel</wa-button>
 
                     {{if eq $.action "edit"}}
                         <span class="right">
-                            <sl-button href="../devices/delete/{{.model.Device.MACAddress}}" variant="danger" outline><sl-icon name="person-dash" slot="prefix"></sl-icon>Delete</sl-button>
+                            <wa-button href="../devices/delete/{{.model.Device.MACAddress}}" variant="danger" outline><wa-icon name="person-dash" slot="prefix"></wa-icon>Delete</wa-button>
                         </span>
                     {{end}}
                 </div>                    

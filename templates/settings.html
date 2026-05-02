@@ -7,56 +7,54 @@
                     <strong>Guest internet (gateway) access</strong>
 
                     <label for="default_access_profile">Authentication behaviour
-                        <sl-tooltip content="Control the gateway behaviour of unidentified users/devices to the network" hoist>
-                            <sl-icon name="info-circle"></sl-icon>
-                        </sl-tooltip>
+                        <wa-tooltip content="Control the gateway behaviour of unidentified users/devices to the network" hoist>
+                            <wa-icon name="info-circle"></wa-icon>
+                        </wa-tooltip>
                     </label>
                     <div class="indent">
-                        <sl-radio-group id="settings_mode" name="mode" value="{{.model.Mode}}">
-                            <sl-radio value="0" {{if eq $.model.Mode 0}} checked{{end}}>Require Login (Captive Portal)
-                                 <sl-tooltip content="Prompts user for credentials to determine access" hoist>
-                                    <sl-icon name="info-circle"></sl-icon>
-                                </sl-tooltip>   
-                            </sl-radio>
-                            {{if eq $.model.Mode 0}}
-                            <sl-checkbox id="self_reg_enabled" name="self_reg_enabled" class="indent" {{if $.model.SelfRegEnabled}}checked{{end}}></sl-checkbox>Allow self-registration</sl-checkbox>
-                                <sl-tooltip content="Allow guest to create own profile using default access profile auto-provisioned" hoist>
-                                    <sl-icon name="info-circle"></sl-icon>
-                                </sl-tooltip>   
+                        <wa-radio-group id="settings_mode" name="mode" value="{{.model.Mode}}">
+                            <wa-radio value="0" {{if eq $.model.Mode 0}} checked{{end}}>Require Login (Captive Portal)
+                                 <wa-tooltip content="Prompts user for credentials to determine access" hoist>
+                                    <wa-icon name="info-circle"></wa-icon>
+                                </wa-tooltip>   
+                            </wa-radio>
+                            {{if eq $.model.Mode    0}}
+                            <wa-checkbox id="self_reg_enabled" name="self_reg_enabled" class="indent" {{if $.model.SelfRegEnabled}}checked{{end}}>Allow self-registration</wa-checkbox>
+                                <wa-tooltip content="Allow guest to create own profile using default access profile auto-provisioned" hoist>
+                                    <wa-icon name="info-circle"></wa-icon>
+                                </wa-tooltip>   
                             {{else}}
                             <input type="hidden" name="self_reg_enabled" value="{{if $.model.SelfRegEnabled}}on{{else}}off{{end}}">
                             {{end}}
-                            <sl-radio value="1" {{if eq $.model.Mode 1}} checked{{end}}>Allow
-                                <sl-tooltip content="Automatically create a new user & device profile (using device name) with default access profile assigned" hoist>
-                                    <sl-icon name="info-circle"></sl-icon>
-                                </sl-tooltip>   
-                            </sl-radio>
+                            <wa-radio value="1" {{if eq $.model.Mode 1}} checked{{end}}>Allow
+                                <wa-tooltip content="Automatically create a new user & device profile (using device name) with default access profile assigned" hoist>
+                                    <wa-icon name="info-circle"></wa-icon>
+                                </wa-tooltip>   
+                            </wa-radio>
 
-                            <sl-radio value="2" {{if eq $.model.Mode 2}} checked{{end}}>Block
-                                <sl-tooltip content="Serve the unauthorised page with no option to login.  The user will need to contact the administrator to provide access" hoist>
-                                    <sl-icon name="info-circle"></sl-icon>
-                                </sl-tooltip>   
-                            </sl-radio>
+                            <wa-radio value="2" {{if eq $.model.Mode 2}} checked{{end}}>Block
+                                <wa-tooltip content="Serve the unauthorised page with no option to login.  The user will need to contact the administrator to provide access" hoist>
+                                    <wa-icon name="info-circle"></wa-icon>
+                                </wa-tooltip>   
+                            </wa-radio>
 
-                        </sl-radio-group>
+                        </wa-radio-group>
                     </div>
 
                     <input type="hidden" id="default_role" name="default_role" value="{{.model.DefaultRole}}">
                     {{if ne .model.Mode 2}}
                     <div class="form-group">
                         <label for="default_role">Default role
-                            <sl-tooltip content="Default role that will be applied to new user profiles when auto-created" hoist>
-                                <sl-icon name="info-circle"></sl-icon>
-                            </sl-tooltip>   
+                            <wa-tooltip content="Default role that will be applied to new user profiles when auto-created" hoist>
+                                <wa-icon name="info-circle"></wa-icon>
+                            </wa-tooltip>   
                         </label>
-                        <sl-dropdown name="default_role" class="indent">
-                            <sl-button slot="trigger" caret>{{.model.DefaultRole}}</sl-button>
-                            <sl-menu>
+                        <wa-dropdown name="default_role" class="indent">
+                            <wa-button slot="trigger" caret>{{.model.DefaultRole}}</wa-button>
                             {{range .roles}}
-                                <sl-menu-item>{{.RoleName}}</sl-menu-item>
+                                <wa-dropdown-item>{{.RoleName}}</wa-dropdown-item>
                             {{end}}
-                            </sl-menu>
-                        </sl-dropdown>
+                        </wa-dropdown>
                     </div>
                     {{end}}
 
@@ -66,19 +64,17 @@
                     <strong>Firewall</strong>
 
                     <label for="firewall">Default NAT firewall
-                        <sl-tooltip content="Override firewall used to apply network access policies.">
-                            <sl-icon name="info-circle"></sl-icon>
-                        </sl-tooltip>
+                        <wa-tooltip content="Override firewall used to apply network access policies.">
+                            <wa-icon name="info-circle"></wa-icon>
+                        </wa-tooltip>
                     </label>
                     <input type="hidden" id="firewall" name="firewall" value="{{.model.Firewall}}">
-                    <sl-dropdown name="firewall" class="indent">
-                        <sl-button slot="trigger" caret>{{.model.Firewall}}</sl-button>
-                        <sl-menu>
+                    <wa-dropdown name="firewall" class="indent">
+                        <wa-button slot="trigger" caret>{{.model.Firewall}}</wa-button>
                         {{range .firewalls}}
-                            <sl-menu-item>{{.}}</sl-menu-item>
+                            <wa-dropdown-item>{{.}}</wa-dropdown-item>
                         {{end}}
-                        </sl-menu>
-                    </sl-dropdown>
+                    </wa-dropdown>
                 </div>
         </div>
     </form>
@@ -88,15 +84,15 @@
     document.onreadystatechange = function () {
         if (document.readyState === "complete") {
 
-            document.querySelectorAll("sl-dropdown").forEach(dropdown => {
-                dropdown.addEventListener("sl-select", (e) => {
+            document.querySelectorAll("wa-dropdown").forEach(dropdown => {
+                dropdown.addEventListener("wa-select", (e) => {
                     document.getElementById(dropdown.getAttribute("name")).value = e.detail.item.innerText;
                     settings_form.submit()
                 });
             });
 
-            if (settings_mode) settings_mode.addEventListener("sl-change", function(e){ if (e.srcElement.tagName == "SL-RADIO-GROUP") settings_form.submit()});
-            if (self_reg_enabled) self_reg_enabled.addEventListener("sl-change", () => settings_form.submit());
+            if (settings_mode) settings_mode.addEventListener("change", function(e){ if (e.srcElement.tagName == "WA-RADIO-GROUP") settings_form.submit()});
+            if (self_reg_enabled) self_reg_enabled.addEventListener("change", () => settings_form.submit());
 
         }
     }

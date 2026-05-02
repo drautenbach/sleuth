@@ -8,17 +8,17 @@
                     <input type="text" name="rolename" value="{{.model.Role.RoleName}}" onkeyup="event.srcElement.value = event.srcElement.value.toLowerCase()" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
                 </div>
                 <div class="form-group">
-                    <sl-switch name="admin"{{if .model.Role.Admin}} checked{{end}}>Allow admin portal access</sl-switch>
+                    <wa-switch name="admin"{{if .model.Role.Admin}} checked{{end}}>Allow admin portal access</wa-switch>
                 </div>
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
-                    <sl-button variant="primary" type="submit" name="action" value="{{.action}}"><sl-icon name="save" slot="prefix"></sl-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</sl-button>
-                    <sl-button variant="default" href="../roles" outline><sl-icon name="arrow-return-left" slot="prefix"></sl-icon>Cancel</sl-button>
+                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save" slot="prefix"></wa-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+                    <wa-button variant="default" href="../roles" outline><wa-icon name="arrow-return-left" slot="prefix"></wa-icon>Cancel</wa-button>
 
                     {{if eq $.action "edit"}}
                         <span class="right">
-                            <sl-button href="../roles/delete/{{.model.Role.RoleName}}" variant="danger" outline><sl-icon name="person-dash" slot="prefix"></sl-icon>Delete</sl-button>
+                            <wa-button href="../roles/delete/{{.model.Role.RoleName}}" variant="danger" outline><wa-icon name="person-dash" slot="prefix"></wa-icon>Delete</wa-button>
                         </span>
                     {{end}}
                 </div>                    
