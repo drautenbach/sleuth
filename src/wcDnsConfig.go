@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"sleuth/internal/db"
 
+	"sort"
+
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 )
 
 type wcDnsConfig struct {
@@ -38,6 +41,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	p.server.router.POST("/dnsconfig/categories/new", func(c *gin.Context) {
 		var cat = &db.DNSCategory{
 			CategoryName: c.PostForm("categoryname"),
+			Enabled:      c.PostForm("enabled") == "on",
 		}
 		var err = p.db.CreateDNSCategory(cat)
 		if err == nil {
@@ -74,6 +78,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 			err = fmt.Errorf("DNS category %s does not exist", c.Param("categoryid"))
 		} else {
 			cat.CategoryName = c.PostForm("categoryname")
+			cat.Enabled = c.PostForm("enabled") == "on"
 			p.db.UpdateDNSCategory(cat)
 		}
 
@@ -116,6 +121,173 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 				"error":  err.Error(),
 				"model": gin.H{
 					"Category": category,
+				},
+			})
+		}
+	})
+
+	/**** RuleSets ****/
+
+	p.server.router.GET("/dnsconfig/rulesets", func(c *gin.Context) {
+		categories := p.db.GetDNSCategories()
+		categoryMap := make(map[string]string)
+		for _, category := range categories {
+			categoryMap[category.CategoryId] = category.CategoryName
+		}
+
+		rulesets := p.db.GetDNSRuleSets()
+		for i := range rulesets {
+			if rulesets[i].External == false {
+				rulesets[i].Source = ""
+				rulesets[i].Schedule = "Manual"
+			}
+			if rulesets[i].Enabled == false && rulesets[i].Schedule != "" {
+				rulesets[i].Schedule = "Disabled"
+			}
+			if categoryName, exists := categoryMap[rulesets[i].CategoryId]; exists {
+				rulesets[i].CategoryId = categoryName
+			}
+		}
+
+		sort.Slice(rulesets, func(i, j int) bool {
+			if rulesets[i].CategoryId != rulesets[j].CategoryId {
+				return rulesets[i].CategoryId < rulesets[j].CategoryId
+			}
+			return rulesets[i].RuleSetName < rulesets[j].RuleSetName
+		})
+
+		p.server.HTML(c, "dnsconfig_rulesets", gin.H{
+			"model": gin.H{
+				"RuleSets": rulesets,
+			},
+		})
+	})
+
+	p.server.router.GET("/dnsconfig/rulesets/new", func(c *gin.Context) {
+		p.server.HTML(c, "dnsconfig_ruleset", gin.H{
+			"action": "create",
+			"title":  "New DNS rule set",
+			"model": gin.H{
+				"RuleSet":    make(map[string]interface{}),
+				"Categories": p.db.GetDNSCategories(),
+			},
+		})
+	})
+
+	p.server.router.POST("/dnsconfig/rulesets/new", func(c *gin.Context) {
+		var ruleset = &db.DNSRuleSet{
+			RuleSetName: c.PostForm("rulesetname"),
+			CategoryId:  c.PostForm("categoryid"),
+			Source:      c.PostForm("source"),
+			Schedule:    c.PostForm("schedule"),
+			Enabled:     c.PostForm("enabled") == "on",
+			External:    c.PostForm("external") == "on",
+		}
+
+		var err error = nil
+		if ruleset.Schedule != "" {
+			_, err = cron.ParseStandard(ruleset.Schedule)
+			if err != nil {
+				err = fmt.Errorf("Update schedule: %w", err)
+			}
+		}
+
+		if err == nil {
+			err = p.db.CreateDNSRuleSet(ruleset)
+		}
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/dnsconfig/rulesets")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "dnsconfig_ruleset", gin.H{
+				"action": "create",
+				"title":  "New DNS rule set",
+				"error":  err.Error(),
+				"model": gin.H{
+					"RuleSet":    ruleset,
+					"Categories": p.db.GetDNSCategories(),
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/dnsconfig/ruleset/:rulesetid", func(c *gin.Context) {
+		rulesetid := c.Param("rulesetid")
+		ruleset := p.db.GetDNSRuleSet(rulesetid)
+		p.server.HTML(c, "dnsconfig_ruleset", gin.H{
+			"action": "edit",
+			"title":  "Edit DNS rule set",
+			"model": gin.H{
+				"RuleSet":    ruleset,
+				"Categories": p.db.GetDNSCategories(),
+			},
+		})
+	})
+
+	p.server.router.POST("/dnsconfig/ruleset/:rulesetid", func(c *gin.Context) {
+		var rs = p.db.GetDNSRuleSet(c.Param("rulesetid"))
+		var err error
+		if rs == nil {
+			err = fmt.Errorf("DNS rule set %s does not exist", c.Param("rulesetid"))
+		}
+
+		if err == nil && rs.Schedule != "" {
+			_, err = cron.ParseStandard(rs.Schedule)
+			if err != nil {
+				err = fmt.Errorf("Update schedule: %w", err)
+			}
+		}
+
+		if err == nil {
+			rs.RuleSetName = c.PostForm("rulesetname")
+			rs.CategoryId = c.PostForm("categoryid")
+			rs.Source = c.PostForm("source")
+			rs.Schedule = c.PostForm("schedule")
+			rs.Enabled = c.PostForm("enabled") == "on"
+			rs.External = c.PostForm("external") == "on"
+			p.db.UpdateDNSRuleSet(rs)
+		}
+
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/dnsconfig/rulesets")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "dnsconfig_category", gin.H{
+				"action": "edit",
+				"title":  "Edit DNS Category",
+				"error":  err.Error(),
+				"model": gin.H{
+					"RuleSet":    rs,
+					"Categories": p.db.GetDNSCategories(),
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/dnsconfig/rulesets/delete/:rulesetid", func(c *gin.Context) {
+		ruleset := p.db.GetDNSCategory(c.Param("rulesetid"))
+		p.server.HTML(c, "dnsconfig_category_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete DNS Category",
+			"model": gin.H{
+				"RuleSet": ruleset,
+			},
+		})
+	})
+
+	p.server.router.POST("/dnsconfig/rulesets/delete/:rulesetid", func(c *gin.Context) {
+		err := p.db.DeleteDNSRuleSet(c.Param("rulesetid"))
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/dnsconfig/rulesets")
+			c.Abort()
+		} else {
+			ruleset := p.db.GetDNSCategory(c.Param("rulesetid"))
+			p.server.HTML(c, "dnsconfig_ruleset_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete DNS rule set",
+				"error":  err.Error(),
+				"model": gin.H{
+					"RuleSet": ruleset,
 				},
 			})
 		}

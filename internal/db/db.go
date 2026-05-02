@@ -892,5 +892,46 @@ func (d *Db) UpdateDNSCategory(c *DNSCategory) error {
 }
 
 func (d *Db) DeleteDNSCategory(categoryid string) error {
+	rulesets := d.GetDNSRuleSets()
+	for _, rule := range rulesets {
+		if rule.CategoryId == categoryid {
+			return fmt.Errorf("Category in use by %s rule set", rule.RuleSetName)
+		}
+	}
 	return delete(d, fmt.Sprintf("dnscategory:%s", categoryid))
+}
+
+/***************** DNS Config - RuleSet **************************/
+
+func (d *Db) GetDNSRuleSet(dnsrulesetid string) *DNSRuleSet {
+	return get[DNSRuleSet](d, fmt.Sprintf("dnsruleset:%s", dnsrulesetid))
+}
+
+func (d *Db) GetDNSRuleSets() []DNSRuleSet {
+	return getAll[DNSRuleSet](d, "dnsruleset:")
+}
+
+func (d *Db) CreateDNSRuleSet(c *DNSRuleSet) error {
+	if c := d.GetDNSCategory(c.CategoryId); c == nil {
+		return fmt.Errorf("Category does not exist")
+	}
+	if c.RuleSetId == "" {
+		id, err := generateUID()
+		if err != nil {
+			return err
+		}
+		c.RuleSetId = id
+	}
+	return create(d, fmt.Sprintf("dnsruleset:%s", c.RuleSetId), c)
+}
+
+func (d *Db) UpdateDNSRuleSet(c *DNSRuleSet) error {
+	if c := d.GetDNSCategory(c.CategoryId); c == nil {
+		return fmt.Errorf("Category does not exist")
+	}
+	return update(d, fmt.Sprintf("dnsruleset:%s", c.RuleSetId), c)
+}
+
+func (d *Db) DeleteDNSRuleSet(dnsrulesetid string) error {
+	return delete(d, fmt.Sprintf("dnsruleset:%s", dnsrulesetid))
 }

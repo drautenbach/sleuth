@@ -5,13 +5,17 @@
     <table border="1" cellspacing="0" cellpadding="0">
         <thead>
             <tr>
+                <th></th>
                 <th>Category</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
             {{range .model.Categories}}
             <tr>
-                <td><a href="category/{{.CategoryId}}"><sl-icon name="pencil-square"></sl-icon></a>&nbsp;{{.CategoryName}}</td>
+                <td><a href="category/{{.CategoryId}}"><sl-icon name="pencil-square"></sl-icon></a></td>
+                <td>{{.CategoryName}}</td>
+                <td><sl-switch size="small" disabled {{if .Enabled}}checked{{end}}></sl-switch></td>
             </tr>
             {{end}}
         </tbody>

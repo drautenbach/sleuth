@@ -1,0 +1,31 @@
+{{template "template-start.html" .}}
+
+    <span class="right"><sl-icon-button name="plus-square" href="rulesets/new"></sl-icon></span>
+    <h2>DNS Rule Sets</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Category</th>
+                <th>RuleSet</th>
+                <th>Description</th>
+                <th>Schedule</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.RuleSets}}
+            <tr>
+                <td><a href="ruleset/{{.RuleSetId}}"><sl-icon name="pencil-square"></sl-icon></a></td>
+                <td>{{.CategoryId}}</td>
+                <td>{{if (eq .Source "")}}{{.RuleSetName}}{{else}}<a href="{{.Source}}" target="_blank">{{.RuleSetName}}</a>{{end}}</td>
+                <td>{{.Description}}</td>
+                <td>{{.Schedule}}</td>
+                <td><sl-switch size="small" disabled {{if .Enabled}}checked{{end}}></sl-switch></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+
+{{template "template-end.html" .}}

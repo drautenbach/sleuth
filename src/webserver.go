@@ -128,36 +128,6 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func (s *WebServer) isWebHost(hostname string) bool {
-	if hostname == "127.0.0.1" {
-		return true
-	} else if ip := net.ParseIP(hostname); ip != nil {
-		interfaces, err := net.Interfaces()
-		if err != nil {
-			return false
-		}
-		for _, iface := range interfaces {
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-			for _, addr := range addrs {
-				var currentIP net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					currentIP = v.IP
-				case *net.IPAddr:
-					currentIP = v.IP
-				}
-				if currentIP.Equal(ip) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
 // CreateSessionToken creates a signed JWT for the given username and returns token string and expiration time.
 func (s *WebServer) CreateSessionToken(username string) (string, time.Time, error) {
 	exp := time.Now().Add(s.ttl)

@@ -7,6 +7,11 @@
                     <label for="rolename">Category</label>
                     <input type="text" name="categoryname" value="{{.model.Category.CategoryName}}" />
                 </div>
+
+                <div class="form-group">
+                    <label for="enabled">Enabled</label>
+                    <sl-switch id="enabled" name="enabled" {{if .model.Category.Enabled}}checked{{end}}>Enabled</sl-switch>
+                </div>
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
