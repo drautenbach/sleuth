@@ -31,13 +31,13 @@
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">
-                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save" slot="prefix"></wa-icon>{{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
-                    <wa-button variant="default" href="../users" outline><wa-icon name="arrow-return-left" slot="prefix"></wa-icon>Cancel</wa-button>
+                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save"></wa-icon> {{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+                    <wa-button variant="default" href="../users" outline><wa-icon name="arrow-left"></wa-icon> Cancel</wa-button>
 
                     {{if eq $.action "edit"}}
                         <span class="right">
-                            <wa-button href="../users/reset/{{.model.User.UserName}}" variant="warning" outline><wa-icon name="key" slot="prefix"></wa-icon>Reset Password</wa-button>
-                            <wa-button href="../users/delete/{{.model.User.UserName}}" variant="danger" outline><wa-icon name="person-dash" slot="prefix"></wa-icon>Delete</wa-button>
+                            <wa-button href="../users/reset/{{.model.User.UserName}}" variant="warning" outline><wa-icon name="key"></wa-icon> Reset Password</wa-button>
+                            <wa-button href="../users/delete/{{.model.User.UserName}}" variant="danger" outline><wa-icon name="user-xmark"></wa-icon> Delete</wa-button>
                         </span>
                     {{end}}
                 </div>                    
