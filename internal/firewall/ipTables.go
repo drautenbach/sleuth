@@ -6,6 +6,7 @@ package firewall
 import (
 	"fmt"
 	"sleuth/internal/constants"
+	"sleuth/internal/network"
 	"strconv"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -74,17 +75,31 @@ func (m *ipTables) Close(fwdrules []constants.FwdRule) error {
 	return nil
 }
 
+func getDestIP(fwdrule *constants.FwdRule) string {
+	if fwdrule.ReasonCode > 0 { // Block access due to reasoncode
+		ip, err := network.GetInterfaceIP(fwdrule.ClientIP)
+		if err == nil {
+			return ip
+		} else {
+			return "127.0.0.1"
+		}
+	}
+	return fwdrule.OrigIP
+}
+
 func (m *ipTables) AddForwardRule(fwdrule *constants.FwdRule) error {
 	/*err := m.ipt.Append("nat", "PREROUTING", "-s", fwdrule.ClientIP, "-d", IP4fromOffset(fwdrule.DestIPOffset), "-j", "DNAT", "--to-destination", fwdrule.OrigIP)
 	if err != nil {
 		fmt.Println(fmt.Errorf("Error appending PREROUTING DNAT rule: %v", err))
 	}*/
-	err := m.ipt.Append("nat", "OUTPUT", "-s", fwdrule.ClientIP, "-d", IP4fromOffset(fwdrule.DestIPOffset), "-j", "DNAT", "--to-destination", fwdrule.OrigIP)
+
+	destIP := getDestIP(fwdrule)
+	err := m.ipt.Append("nat", "OUTPUT", "-s", fwdrule.ClientIP, "-d", IP4fromOffset(fwdrule.DestIPOffset), "-j", "DNAT", "--to-destination", destIP)
 	if err != nil {
-		fmt.Println(fmt.Errorf("Error appending OUTPUT DNAT rule %s -> %s -> %s: %v", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), fwdrule.OrigIP, err))
+		fmt.Println(fmt.Errorf("Error appending OUTPUT DNAT rule %s -> %s -> %s: %v", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), destIP, err))
 		return err
 	} else {
-		fmt.Println(fmt.Printf("Created OUTPUT Rule %s -> %s -> %s", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), fwdrule.OrigIP))
+		fmt.Println(fmt.Printf("Created OUTPUT Rule %s -> %s -> %s", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), destIP))
 	}
 
 	/*err = m.ipt.Append("filter", "FORWARD", "-d", fwdrule.OrigIP, "-j", "ACCEPT")
@@ -105,12 +120,13 @@ func (m *ipTables) RemoveForwardRule(fwdrule *constants.FwdRule) error {
 		fmt.Println(fmt.Errorf("Error deleting PREROUTING DNAT rule: %v", err))
 		return err
 	}*/
-	err := m.ipt.Delete("nat", "OUTPUT", "-s", fwdrule.ClientIP, "-d", IP4fromOffset(fwdrule.DestIPOffset), "-j", "DNAT", "--to-destination", fwdrule.OrigIP)
+	destIP := getDestIP(fwdrule)
+	err := m.ipt.Delete("nat", "OUTPUT", "-s", fwdrule.ClientIP, "-d", IP4fromOffset(fwdrule.DestIPOffset), "-j", "DNAT", "--to-destination", destIP)
 	if err != nil {
-		fmt.Println(fmt.Errorf("Error deleting OUTPUT DNAT rule  %s -> %s -> %s: %v", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), fwdrule.OrigIP, err))
+		fmt.Println(fmt.Errorf("Error deleting OUTPUT DNAT rule  %s -> %s -> %s: %v", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), destIP, err))
 		return err
 	} else {
-		fmt.Println(fmt.Printf("Deleted OUTPUT Rule %s -> %s -> %s", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), fwdrule.OrigIP))
+		fmt.Println(fmt.Printf("Deleted OUTPUT Rule %s -> %s -> %s", fwdrule.Hostname, IP4fromOffset(fwdrule.DestIPOffset), destIP))
 	}
 
 	/*err = m.ipt.Delete("filter", "FORWARD", "-d", fwdrule.OrigIP, "-j", "ACCEPT")

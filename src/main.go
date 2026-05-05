@@ -2,22 +2,19 @@ package main
 
 import (
 	"sleuth/internal/db"
-	"sleuth/internal/dns"
 	"sleuth/internal/log"
 	"time"
 )
 
 func main() {
 	log.Info("Starting Sleuth %s...\n", AppVersion)
-
 	p := InitPortal()
-	d := dns.InitDnsServer(p.fw, p.security)
 	initDefaults(p)
 
 	defer p.db.Close()
 	// start HTTP and DNS servers concurrently and keep main alive
 	go p.server.router.Run("0.0.0.0:80")
-	go d.Start()
+	go p.dns.Start()
 	select {}
 }
 

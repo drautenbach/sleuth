@@ -113,19 +113,20 @@ func IP4fromOffset(offset uint16) string {
 	return intToIP4(ip + uint32(offset))
 }
 
-func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32) (string, error) {
+func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32, reasoncode uint16) (string, error) {
 	if ttl < 90 {
 		ttl = 90
 	}
 	r := &constants.FwdRule{
-		Since:     time.Now(),
-		Until:     time.Now(),
-		ClientIP:  clientIP,
-		Hostname:  name,
-		OrigIP:    actualIP,
-		QType:     qtype,
-		DNSExpiry: time.Now().Add(time.Second * time.Duration(ttl)),
-		BytesUsed: 0,
+		Since:      time.Now(),
+		Until:      time.Now(),
+		ClientIP:   clientIP,
+		Hostname:   name,
+		OrigIP:     actualIP,
+		QType:      qtype,
+		DNSExpiry:  time.Now().Add(time.Second * time.Duration(ttl)),
+		BytesUsed:  0,
+		ReasonCode: reasoncode,
 	}
 	max_len := uint16(65535) //256*256
 	rules := m.db.GetFwdRules()
@@ -144,15 +145,28 @@ func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint1
 	}
 
 	if r.DestIPOffset == 0 {
-		return "", errors.New("no available IP offset")
+		return "0.0.0.0", errors.New("no available IP offset")
 	} else {
 		err := m.db.CreateFwdRule(r, time.Now().Add(time.Duration(330)*time.Second))
 		if err == nil && m.fw != nil {
 			m.fw.AddForwardRule(r)
+			return IP4fromOffset(r.DestIPOffset), err
+		} else {
+			return "0.0.0.0", err
 		}
-		return IP4fromOffset(r.DestIPOffset), err
+
 	}
 
+}
+
+func (m *FirewallManager) UpdateIPv4(fwr *constants.FwdRule, newReasonCode uint16) error {
+	err := m.fw.RemoveForwardRule(fwr)
+	if err != nil {
+		return err
+	}
+	fwr.ReasonCode = newReasonCode
+	m.db.ExtendFwdRule(fwr, time.Now().Add(time.Duration(330)*time.Second))
+	return m.fw.AddForwardRule(fwr)
 }
 
 func (m *FirewallManager) IPCacheLookup(clientIP string, name string, qtype uint16) *constants.FwdRule {

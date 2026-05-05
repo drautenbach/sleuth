@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sleuth/internal/constants"
 	"sleuth/internal/firewall"
+	"sleuth/internal/network"
 	"sleuth/internal/security"
 	"strings"
 
@@ -37,95 +39,46 @@ func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) ([]dn
 
 func (s *DnsServer) processDnsResponse(arr []dns.RR, source string) []dns.RR {
 	if s.fw.IsActive() {
-		resp := []dns.RR{}
-		ip4_found := false
-
+		resp := make(map[uint16]dns.RR)
 		for i := range arr {
 			header := arr[i].Header()
-			if header.Rrtype == dns.TypeA {
-				if !ip4_found {
-					a := arr[i].(*dns.A)
-					actualIP := a.A.String()
+			if resp[header.Rrtype] == nil {
+				actualIP := ""
+				switch header.Rrtype {
+				case dns.TypeA:
+					actualIP = arr[i].(*dns.A).A.String()
+				default:
+					fmt.Printf("Did not process dns type %s %s", getQueryTypeText(header.Rrtype), header)
+				}
+				if actualIP != "" {
 					ttl := header.Ttl
 					qtype := arr[i].Header().Rrtype
-					allocatedIP, err := s.fw.AllocateIPv4(source, header.Name, qtype, actualIP, ttl)
+					_, reason := s.security.VerifyDomainAccess(source, header.Name)
+					allocatedIP, err := s.fw.AllocateIPv4(source, header.Name, qtype, actualIP, ttl, reason)
 					if err != nil {
-						// Handle error, perhaps skip or log
 						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
 					}
-					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN A %s", header.Name, 60 /*ttl*/, allocatedIP))
-					resp = append(resp, newRR)
-					ip4_found = true
+					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", header.Name, 60 /*ttl*/, getQueryTypeText(header.Rrtype), allocatedIP))
+					resp[header.Rrtype] = newRR
+				} else {
+					resp[header.Rrtype] = arr[i]
 				}
-			} else {
-				resp = append(resp, arr[i])
 			}
 		}
 
-		return resp
+		values := make([]dns.RR, 0, len(resp))
+		for _, v := range resp {
+			values = append(values, v)
+		}
+		return values
 
 	}
 
 	return arr
 }
 
-func GetInterfaceIP(remoteAddr string) (string, error) {
-
-	// Get a list of all network interfaces
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "", fmt.Errorf("error getting interfaces: %v", err)
-	}
-
-	// Iterate through the interfaces to find the matching IP address
-	for _, iface := range interfaces {
-		// Skip loopback interfaces
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-
-		// Get the list of addresses for the interface
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-
-		// Check each address
-		for _, addr := range addrs {
-			ipNet, ok := addr.(*net.IPNet)
-			if ok && ipNet.IP.String() == remoteAddr {
-				// Found the matching IP
-				return ipNet.IP.String(), nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("no matching IP found for remoteAddr: %s", remoteAddr)
-}
-
-func createLocalResponse(name string, source string) dns.RR {
-	ip, err := GetInterfaceIP(source)
-	if err == nil {
-		rr, _ := dns.NewRR(fmt.Sprintf("%s 1 IN %s %s", name, "A", ip))
-		return rr
-	}
-	rr, _ := dns.NewRR(fmt.Sprintf("%s 1 IN %s %s", name, "A", "127.0.0.1"))
-	return rr
-}
-
 func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string) ([]dns.RR, int) {
 	arr := make([]dns.RR, 0)
-
-	parts := strings.Split(name, ".")
-	if len(parts) > 2 && parts[len(parts)-2] == "local" {
-		arr = append(arr, createLocalResponse(name, source))
-		return arr, dns.RcodeSuccess
-	}
-
-	if !s.security.IsAllowedAccess(source) {
-		arr = append(arr, createLocalResponse(name, source))
-		return arr, dns.RcodeSuccess
-	}
 
 	arr, err := queryLocal(name, qtype)
 	if err == nil {
@@ -142,6 +95,15 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string) ([
 		logQueryResult(source, name, qtype, "resolved as blacklisted name")
 		return arr, dns.RcodeNameError
 	}
+
+	if name == "cp.local." && qtype == 1 { // special case to allow logout
+		ip, _ := network.GetInterfaceIP(source)
+		allocatedIP, _ := s.fw.AllocateIPv4(source, name, qtype, ip, 60, constants.AccessAllowed)
+		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60 /*ttl*/, "A", allocatedIP))
+		arr = append(arr, rr)
+		return arr, dns.RcodeSuccess
+	}
+
 	arr, err = queryUpstream(name, qtype)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved via upstream")
@@ -196,4 +158,12 @@ func (s DnsServer) Start() {
 	if err != nil {
 		log.Fatalf("Failed to start server: %s\n ", err.Error())
 	}
+}
+
+func (s *DnsServer) ReevaluateDomainAccess(fwr *constants.FwdRule) error {
+	_, newReason := s.security.VerifyDomainAccess(fwr.ClientIP, fwr.Hostname)
+	if newReason != fwr.ReasonCode {
+		return s.fw.UpdateIPv4(fwr, newReason)
+	}
+	return nil
 }

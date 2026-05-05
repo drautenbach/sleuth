@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -38,6 +37,7 @@ type Portal struct {
 	config   GlobalConfiguration
 	fw       firewall.FirewallManager
 	wc       WebControllers
+	dns      dns.DnsServer
 }
 
 func InitPortal() *Portal {
@@ -49,51 +49,83 @@ func InitPortal() *Portal {
 	}
 	p.security = security.InitSession(p.db)
 	p.fw.Init(p.db)
-	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
-
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
+	p.dns = *dns.InitDnsServer(p.fw, p.security)
+	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 
 	p.wc.System = *wcSystemInit(p)
 	p.wc.Setup = *wcSetupInit(p)
 	p.wc.Profiles = *wcProfilesInit(p)
 	p.wc.Stats = *wcStatsInit(p)
 	p.wc.DNSConfig = *wcDnsConfigInit(p)
-
-	p.server.router.GET("/logout", func(c *gin.Context) {
-		p.security.ClearSession(clientIP(c.Request))
-		c.SetCookie("sleuth_session", "", -1, "/", "", false, true)
-		c.Redirect(http.StatusSeeOther, "/")
-	})
+	p.server.router.GET("/logout", p.logout)
 
 	webShellInit(p)
 
 	return p
 }
 
-func (p *Portal) interceptHandler(c *gin.Context) {
-	var err error
-
+func (p *Portal) logout(c *gin.Context) {
+	is_portal, page := p.isPortalRequest(c)
+	if is_portal && page != "portal_session" {
+		c.SetCookie("sleuth_session", "", -1, "/", "", false, true)
+		c.Redirect(http.StatusSeeOther, "/")
+	} else {
+		p.security.ClearSession(clientIP(c.Request))
+		allrules := p.db.GetFwdRulesByClient(clientIP(c.Request))
+		for i := range allrules {
+			if allrules[i].ReasonCode == 0 {
+				p.dns.ReevaluateDomainAccess(&allrules[i])
+			}
+		}
+		c.Header("connection", "close")
+		if page == "portal_session" {
+			c.Redirect(http.StatusMovedPermanently, "/")
+		}
+		c.Redirect(http.StatusSeeOther, c.Request.URL.String())
+	}
+}
+func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
 	is_portal := true
+	page := "portal_login"
+	host := ""
 	ip := clientIP(c.Request)
-	if_ip, _ := dns.GetInterfaceIP(ip)
 	session, _ := p.security.GetSession(ip)
-	if loc := location.Get(c); loc != nil && loc.Host != "cp.local" {
-		host_parts := strings.Split(loc.Host, ".")
-		if len(host_parts) > 1 {
-			if host_parts[len(host_parts)-2] == "cp" && session != "" {
-				c.Redirect(302, "http://"+strings.Join(host_parts[:len(host_parts)-2], ".")+c.Request.URL.Path+"?"+c.Request.URL.RawQuery)
-				return
+	loc := location.Get(c)
+	if loc != nil {
+		host = loc.Host
+		if loc.Host != ip {
+			fwr := p.db.GetFwdRuleByHostname(ip, loc.Host+".", 1)
+			if fwr != nil {
+				is_portal = false
+				if host == "cp.local" {
+					if fwr.ReasonCode == 0 {
+						page = "portal_session"
+					} else {
+						page = "session_login"
+					}
+				} else {
+					if fwr.ReasonCode == 0 {
+						page = "portal_valid"
+					} else if fwr.ReasonCode == 1 && session != "" {
+						p.dns.ReevaluateDomainAccess(fwr)
+						c.Header("connection", "close")
+					}
+				}
 			}
-			if host_parts[len(host_parts)-2] != "cp" && session == "" && net.ParseIP(loc.Host) == nil {
-				c.Redirect(302, "http://"+loc.Host+".cp.local"+c.Request.URL.Path+"?"+c.Request.URL.RawQuery)
-				return
-			}
-			is_portal = host_parts[len(host_parts)-2] != "cp"
 		}
 	}
+	return is_portal, page
+}
+
+func (p *Portal) interceptHandler(c *gin.Context) {
+	var err error
+	message := ""
+	is_portal, page := p.isPortalRequest(c)
+	ip := clientIP(c.Request)
 
 	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
 		var action = c.Request.FormValue("sleuth_action")
@@ -106,23 +138,27 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					confirmPassword := c.Request.FormValue("confirm_password")
 					if newPassword == confirmPassword {
 						p.db.SetPassword(u.UserName, newPassword)
-						token, exp, serr := p.server.CreateSessionToken(u.UserName)
+						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+						/*token, exp, serr := p.server.CreateSessionToken(u.UserName)
 						if serr == nil {
 							maxAge := int(time.Until(exp).Seconds())
 							c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
 							c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
 							return
 						}
-						err = serr
+						err = serr*/
 					} else {
 						err = fmt.Errorf("passwords do not match")
 					}
 				} else {
-					err = fmt.Errorf("password reset link has expired")
+					err = fmt.Errorf("password reset has expired")
 				}
 			} else {
 				err = fmt.Errorf("user %s does not exist", c.Request.FormValue("username"))
 			}
+		case "logout":
+			p.logout(c)
+			return
 		case "login":
 			u := p.db.GetUser(c.Request.FormValue("username"))
 			if u != nil {
@@ -135,20 +171,35 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					c.Abort()
 					return
 				} else if u.Password == c.Request.FormValue("password") {
-					p.security.CreateSession(clientIP(c.Request), u.UserName)
-					token, exp, serr := p.server.CreateSessionToken(u.UserName)
-					if serr == nil {
+					if is_portal {
 						if p.security.IsAllowedPortalAccess(u.UserName) {
-							maxAge := int(time.Until(exp).Seconds())
-							c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
-							c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
-							return
+							token, exp, serr := p.server.CreateSessionToken(u.UserName)
+							if serr == nil {
+								maxAge := int(time.Until(exp).Seconds())
+								c.SetCookie("sleuth_session", token, maxAge, "/", "", false, true)
+								c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+								return
+							} else {
+								err = serr
+							}
 						} else {
 							err = fmt.Errorf("access denied")
 						}
 					} else {
-						err = serr
+						p.security.CreateSession(clientIP(c.Request), u.UserName)
+						if page == "session_login" {
+							page = "portal_session"
+						}
+
+						allrules := p.db.GetFwdRulesByClient(clientIP(c.Request))
+						for i := range allrules {
+							if allrules[i].ReasonCode != 0 {
+								p.dns.ReevaluateDomainAccess(&allrules[i])
+							}
+						}
+						c.Header("connection", "close")
 					}
+
 				} else {
 					err = fmt.Errorf("access denied")
 				}
@@ -157,26 +208,30 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 			}
 		}
 
-	} else if p.isAllowed(c) {
+	} else if is_portal && p.isAllowed(c) {
 		c.Next()
 		return
 	}
 
 	portal_address := ""
-	if !is_portal {
+	if !is_portal || page == "session_login" {
+		if_ip, _ := network.GetInterfaceIP(clientIP(c.Request))
 		if if_ip != "" {
 			portal_address = "http://" + if_ip
 		} else {
 			portal_address = "http://127.0.0.1"
 		}
 	}
-	p.server.HTML(c, "portal_login", gin.H{
+	p.server.HTML(c, page, gin.H{
 		"next":           c.Query("next"),
 		"ip":             ip,
 		"portal_address": portal_address,
 		"error":          err,
+		"message":        message,
 	})
-	c.Abort()
+	if page != "portal_session" || c.Request.URL.Path != "/logout" {
+		c.Abort()
+	}
 }
 
 func (p *Portal) isAllowed(c *gin.Context) bool {
@@ -192,9 +247,9 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 	//}
 
 	ip := clientIP(c.Request)
-	if username, err := p.security.GetSession(ip); err == nil {
+	/*if username, err := p.security.GetSession(ip); err == nil {
 		return p.security.IsAllowedPortalAccess(username)
-	}
+	}*/
 
 	// 2) Check JWT cookie or Authorization: Bearer token
 	var tokenStr string

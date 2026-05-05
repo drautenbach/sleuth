@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sleuth/internal/constants"
 	"sleuth/internal/db"
 	"strconv"
 	"strings"
@@ -41,15 +42,15 @@ func (s *Security) CreateSession(IP string, Username string) {
 	})
 }
 
-func (s *Security) IsAllowedAccess(IP string) bool {
-	sess := s.db.GetSessions()
-	fmt.Print(sess)
-	if session := s.db.GetSession(IP); session != nil {
+func (s *Security) VerifyDomainAccess(clientIP string, hostname string) (bool, uint16) {
+	if session := s.db.GetSession(clientIP); session != nil {
 		if user := s.db.GetUser(session.Username); user != nil && user.Enabled {
-			return true
+			return true, constants.AccessAllowed
 		}
+		return false, constants.AccessBlockedUnauthorised
+	} else {
+		return false, constants.AccessBlockedNotAuthenticated
 	}
-	return false
 }
 
 func (s *Security) IsAllowedPortalAccess(Username string) bool {

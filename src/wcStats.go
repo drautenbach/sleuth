@@ -13,12 +13,13 @@ type wcStats struct {
 }
 
 type trafficStat struct {
-	Since    string
-	Host     string
-	IP       string
-	TempIP   string
-	Bytes    uint64
-	Duration string
+	Since      string
+	Host       string
+	IP         string
+	TempIP     string
+	Bytes      uint64
+	Duration   string
+	ReasonCode string
 }
 
 func (s *wcStats) GetTrafficStats(ip string) []trafficStat {
@@ -35,12 +36,13 @@ func (s *wcStats) GetTrafficStats(ip string) []trafficStat {
 		seconds := int(duration.Seconds()) % 60
 
 		neighbour := trafficStat{
-			Since:    fr.Since.Format("2006-01-02 15:04:05"),
-			Host:     fr.Hostname,
-			IP:       fr.OrigIP,
-			TempIP:   firewall.IP4fromOffset(fr.DestIPOffset),
-			Bytes:    fr.BytesUsed,
-			Duration: fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds),
+			Since:      fr.Since.Format("2006-01-02 15:04:05"),
+			Host:       fr.Hostname,
+			IP:         fr.OrigIP,
+			TempIP:     firewall.IP4fromOffset(fr.DestIPOffset),
+			Bytes:      fr.BytesUsed,
+			Duration:   fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds),
+			ReasonCode: fmt.Sprintf("%d", fr.ReasonCode),
 		}
 		result = append(result, neighbour)
 	}

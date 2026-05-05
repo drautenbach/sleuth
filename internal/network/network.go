@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -306,4 +307,38 @@ func (n *Network) FindByMac(mac string) *node {
 		}
 	}
 	return nil
+}
+
+func GetInterfaceIP(remoteAddr string) (string, error) {
+
+	// Get a list of all network interfaces
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", fmt.Errorf("error getting interfaces: %v", err)
+	}
+
+	// Iterate through the interfaces to find the matching IP address
+	for _, iface := range interfaces {
+		// Skip loopback interfaces
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		// Get the list of addresses for the interface
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		// Check each address
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if ok && ipNet.IP.String() == remoteAddr {
+				// Found the matching IP
+				return ipNet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no matching IP found for remoteAddr: %s", remoteAddr)
 }
