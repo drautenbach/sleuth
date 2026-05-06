@@ -98,10 +98,10 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string) ([
 
 	if name == "cp.local." && qtype == 1 { // special case to allow logout
 		ip, _ := network.GetInterfaceIP(source)
-		allocatedIP, _ := s.fw.AllocateIPv4(source, name, qtype, ip, 60, constants.AccessAllowed)
-		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60 /*ttl*/, "A", allocatedIP))
+		//allocatedIP, _ := s.fw.AllocateIPv4(source, name, qtype, ip, 60, constants.AccessAllowed)
+		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60 /*ttl*/, "A", ip))
 		arr = append(arr, rr)
-		return arr, dns.RcodeSuccess
+		return s.processDnsResponse(arr, source), dns.RcodeSuccess
 	}
 
 	arr, err = queryUpstream(name, qtype)

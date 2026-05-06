@@ -15,6 +15,7 @@ import (
 	"sleuth/internal/dns"
 	"sleuth/internal/firewall"
 	"sleuth/internal/network"
+	"sleuth/internal/rules"
 	"sleuth/internal/security"
 
 	"github.com/gin-contrib/location/v2"
@@ -38,6 +39,7 @@ type Portal struct {
 	fw       firewall.FirewallManager
 	wc       WebControllers
 	dns      dns.DnsServer
+	rules    rules.DNSRulesEngine
 }
 
 func InitPortal() *Portal {
@@ -52,6 +54,8 @@ func InitPortal() *Portal {
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
+	p.rules = *rules.Init(p.db)
+	p.rules.InitDefaults()
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
 	p.dns = *dns.InitDnsServer(p.fw, p.security)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
@@ -112,8 +116,8 @@ func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
 						page = "portal_valid"
 					} else if fwr.ReasonCode == 1 && session != "" {
 						p.dns.ReevaluateDomainAccess(fwr)
-						c.Header("connection", "close")
 					}
+					c.Header("connection", "close")
 				}
 			}
 		}
@@ -121,11 +125,78 @@ func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
 	return is_portal, page
 }
 
+type requestType struct {
+	isAdminPortal   bool
+	sessionUser     string
+	serveTemplate   string
+	host            string
+	resourceRequest bool
+}
+
+func (p *Portal) determineRequest(c *gin.Context) requestType {
+	var rt = &requestType{
+		isAdminPortal: true,
+	}
+	ip := clientIP(c.Request)
+	loc := location.Get(c)
+	host := ""
+	if loc != nil {
+		host = loc.Host
+		if loc.Host != ip {
+			fwr := p.db.GetFwdRuleByHostname(ip, loc.Host+".", 1)
+			if fwr != nil {
+				rt.isAdminPortal = false
+				rt.sessionUser, _ = p.security.GetSession(ip)
+				rt.serveTemplate = "session_login"
+
+				if host == "cp.local" {
+					if fwr.ReasonCode == 0 {
+						rt.serveTemplate = "portal_session"
+					}
+				} else {
+					if fwr.ReasonCode == 0 {
+						rt.serveTemplate = "portal_valid"
+					} else if fwr.ReasonCode == 1 && rt.sessionUser != "" {
+						p.dns.ReevaluateDomainAccess(fwr)
+					}
+					c.Header("connection", "close")
+				}
+			}
+		}
+	}
+
+	if rt.isAdminPortal {
+		var tokenStr string
+		if cookie, err := c.Cookie("sleuth_session"); err == nil {
+			tokenStr = cookie
+		} else {
+			if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+				tokenStr = strings.TrimPrefix(auth, "Bearer ")
+			}
+		}
+		if tokenStr != "" {
+			if token, err := p.server.ValidateSessionToken(tokenStr); err == nil {
+				rt.sessionUser = token
+			}
+		} else {
+			rt.serveTemplate = "portal_login"
+		}
+	}
+
+	if c.Request.Method == http.MethodGet {
+		info, err := os.Stat("./www" + c.Request.URL.Path)
+		if info != nil && (os.IsExist(err) || !info.IsDir()) {
+			rt.resourceRequest = true
+		}
+	}
+
+	return *rt
+}
+
 func (p *Portal) interceptHandler(c *gin.Context) {
 	var err error
 	message := ""
-	is_portal, page := p.isPortalRequest(c)
-	ip := clientIP(c.Request)
+	rt := p.determineRequest(c)
 
 	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
 		var action = c.Request.FormValue("sleuth_action")
@@ -171,7 +242,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					c.Abort()
 					return
 				} else if u.Password == c.Request.FormValue("password") {
-					if is_portal {
+					if rt.isAdminPortal {
 						if p.security.IsAllowedPortalAccess(u.UserName) {
 							token, exp, serr := p.server.CreateSessionToken(u.UserName)
 							if serr == nil {
@@ -187,10 +258,6 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 						}
 					} else {
 						p.security.CreateSession(clientIP(c.Request), u.UserName)
-						if page == "session_login" {
-							page = "portal_session"
-						}
-
 						allrules := p.db.GetFwdRulesByClient(clientIP(c.Request))
 						for i := range allrules {
 							if allrules[i].ReasonCode != 0 {
@@ -198,6 +265,8 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 							}
 						}
 						c.Header("connection", "close")
+						c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+						return
 					}
 
 				} else {
@@ -208,13 +277,13 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 			}
 		}
 
-	} else if is_portal && p.isAllowed(c) {
+	} else if (rt.isAdminPortal && rt.sessionUser != "") || rt.resourceRequest {
 		c.Next()
 		return
 	}
 
 	portal_address := ""
-	if !is_portal || page == "session_login" {
+	if !rt.isAdminPortal || rt.serveTemplate == "session_login" {
 		if_ip, _ := network.GetInterfaceIP(clientIP(c.Request))
 		if if_ip != "" {
 			portal_address = "http://" + if_ip
@@ -222,14 +291,14 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 			portal_address = "http://127.0.0.1"
 		}
 	}
-	p.server.HTML(c, page, gin.H{
+	p.server.HTML(c, rt.serveTemplate, gin.H{
 		"next":           c.Query("next"),
-		"ip":             ip,
+		"ip":             clientIP(c.Request),
 		"portal_address": portal_address,
 		"error":          err,
 		"message":        message,
 	})
-	if page != "portal_session" || c.Request.URL.Path != "/logout" {
+	if rt.serveTemplate != "portal_session" || c.Request.URL.Path != "/logout" {
 		c.Abort()
 	}
 }
@@ -238,12 +307,7 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 
 	// 1) Static content on the web server should always be allowed
 	//if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
-	if c.Request.Method == http.MethodGet {
-		info, err := os.Stat("./www" + c.Request.URL.Path)
-		if info != nil && (os.IsExist(err) || !info.IsDir()) {
-			return true
-		}
-	}
+
 	//}
 
 	ip := clientIP(c.Request)
@@ -252,20 +316,6 @@ func (p *Portal) isAllowed(c *gin.Context) bool {
 	}*/
 
 	// 2) Check JWT cookie or Authorization: Bearer token
-	var tokenStr string
-	if cookie, err := c.Cookie("sleuth_session"); err == nil {
-		tokenStr = cookie
-	} else {
-		if auth := c.Request.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-			tokenStr = strings.TrimPrefix(auth, "Bearer ")
-		}
-	}
-	if tokenStr != "" {
-		if token, err := p.server.ValidateSessionToken(tokenStr); err == nil {
-			p.security.CreateSession(ip, token)
-			return p.security.IsAllowedPortalAccess(token)
-		}
-	}
 
 	// 3) Check by MAC address if client is allowed
 	macaddress := network.Search(ip)
