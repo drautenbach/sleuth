@@ -17,6 +17,7 @@ type FwdRule struct {
 	Since        time.Time
 	Until        time.Time
 	ClientIP     string
+	InterfaceIP  string
 	OrigIP       string
 	DestIPOffset uint16
 	Hostname     string

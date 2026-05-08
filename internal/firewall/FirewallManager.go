@@ -113,20 +113,26 @@ func IP4fromOffset(offset uint16) string {
 	return intToIP4(ip + uint32(offset))
 }
 
-func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32, reasoncode uint16) (string, error) {
+func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32, reasoncode uint16, if_ip string) (string, error) {
+
+	if fr := m.db.GetFwdRuleByHostname(clientIP, name, qtype); fr != nil {
+		return IP4fromOffset(fr.DestIPOffset), nil
+	}
+
 	if ttl < 90 {
 		ttl = 90
 	}
 	r := &constants.FwdRule{
-		Since:      time.Now(),
-		Until:      time.Now(),
-		ClientIP:   clientIP,
-		Hostname:   name,
-		OrigIP:     actualIP,
-		QType:      qtype,
-		DNSExpiry:  time.Now().Add(time.Second * time.Duration(ttl)),
-		BytesUsed:  0,
-		ReasonCode: reasoncode,
+		Since:       time.Now(),
+		Until:       time.Now(),
+		ClientIP:    clientIP,
+		InterfaceIP: if_ip,
+		Hostname:    name,
+		OrigIP:      actualIP,
+		QType:       qtype,
+		DNSExpiry:   time.Now().Add(time.Second * time.Duration(ttl)),
+		BytesUsed:   0,
+		ReasonCode:  reasoncode,
 	}
 	max_len := uint16(65535) //256*256
 	rules := m.db.GetFwdRules()
@@ -215,6 +221,16 @@ func (m *FirewallManager) ReviewFwdRules() {
 			if err == nil {
 				m.db.DeleteFwdRule(&rules[i])
 			}
+		}
+	}
+}
+
+func (m *FirewallManager) FlushSource(clientIP string) {
+	rules := m.db.GetFwdRulesByClient(clientIP)
+	for i := range rules {
+		if m.fw != nil {
+			m.fw.RemoveForwardRule(&rules[i])
+			m.db.DeleteFwdRule(&rules[i])
 		}
 	}
 }

@@ -57,7 +57,7 @@ func InitPortal() *Portal {
 	p.rules = *rules.Init(p.db)
 	p.rules.InitDefaults()
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
-	p.dns = *dns.InitDnsServer(p.fw, p.security)
+	p.dns = *dns.InitDnsServer(p.fw, p.db, p.security)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 
 	p.wc.System = *wcSystemInit(p)
@@ -105,7 +105,7 @@ func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
 			fwr := p.db.GetFwdRuleByHostname(ip, loc.Host+".", 1)
 			if fwr != nil {
 				is_portal = false
-				if host == "cp.local" {
+				if host == "my.session" {
 					if fwr.ReasonCode == 0 {
 						page = "portal_session"
 					} else {
@@ -149,7 +149,7 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 				rt.sessionUser, _ = p.security.GetSession(ip)
 				rt.serveTemplate = "session_login"
 
-				if host == "cp.local" {
+				if host == "my.session" {
 					if fwr.ReasonCode == 0 {
 						rt.serveTemplate = "portal_session"
 					}

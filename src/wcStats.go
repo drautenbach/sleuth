@@ -70,5 +70,16 @@ func wcStatsInit(p *Portal) *wcStats {
 		stats.renderTraffic(c, nil)
 	})
 
+	p.server.router.POST("/stats/traffic/:ip", func(c *gin.Context) {
+		ip, _ := c.Params.Get("ip")
+		action := c.Request.Form.Get("action")
+		switch action {
+		case "flush":
+			p.dns.FlushCache(ip)
+			p.fw.FlushSource(ip)
+		}
+		stats.renderTraffic(c, nil)
+	})
+
 	return stats
 }

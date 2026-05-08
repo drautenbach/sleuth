@@ -2,7 +2,7 @@
 
     <h2>Stats</h2>
 
-    <form>
+    <form method="POST">
 
         <div class="form-group">
             <label for="ip">IP</label>
@@ -38,7 +38,11 @@
                 </tbody>
             </table>
         </p>
+
+        <wa-button type="submit" name="action" value="flush">Flush</wa-button>
+
     </form>
+
 
 
 {{template "template-end.html" .}}

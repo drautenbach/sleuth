@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"github.com/miekg/dns"
 )
 
 type Db struct {
@@ -811,7 +812,7 @@ func getAll[T any](d *Db, keyprefix string) []T {
 	return result
 }
 
-func create[T any](d *Db, key string, record *T) error {
+func create[T any](d *Db, key string, record *T, ttl time.Duration) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
 		role, err := txn.Get([]byte(key))
 		if role != nil {
@@ -822,7 +823,11 @@ func create[T any](d *Db, key string, record *T) error {
 		if err != nil {
 			return err
 		}
-		err = txn.Set([]byte(key), val)
+		if ttl > 0 {
+			err = txn.SetEntry(badger.NewEntry([]byte(key), val).WithTTL(ttl))
+		} else {
+			err = txn.Set([]byte(key), val)
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -884,7 +889,7 @@ func (d *Db) CreateDNSCategory(c *DNSCategory) error {
 		}
 		c.CategoryId = id
 	}
-	return create(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c)
+	return create(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c, 0)
 }
 
 func (d *Db) UpdateDNSCategory(c *DNSCategory) error {
@@ -922,7 +927,7 @@ func (d *Db) CreateDNSRuleSet(c *DNSRuleSet) error {
 		}
 		c.RuleSetId = id
 	}
-	return create(d, fmt.Sprintf("dnsruleset:%s", c.RuleSetId), c)
+	return create(d, fmt.Sprintf("dnsruleset:%s", c.RuleSetId), c, 0)
 }
 
 func (d *Db) UpdateDNSRuleSet(c *DNSRuleSet) error {
@@ -934,4 +939,38 @@ func (d *Db) UpdateDNSRuleSet(c *DNSRuleSet) error {
 
 func (d *Db) DeleteDNSRuleSet(dnsrulesetid string) error {
 	return delete(d, fmt.Sprintf("dnsruleset:%s", dnsrulesetid))
+}
+
+/***************** DNS Cache **************************/
+
+func (d *Db) CreateDNSCacheRecord(clientIP string, name string, qtype uint16, ttl uint32, rr *[]dns.RR) error {
+	return create(d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype), rr, time.Second*time.Duration(ttl))
+}
+
+func (d *Db) DeleteDNSCacheRecord(clientIP string, name string, qtype uint16, rr *[]dns.RR) error {
+	return delete(d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype))
+}
+
+func (d *Db) GetDNSCacheRecord(clientIP string, name string, qtype uint16) *[]dns.RR {
+	return get[[]dns.RR](d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype))
+}
+
+func (d *Db) FlushDNSCacheRecords(clientIP string) error {
+	keyprefix := fmt.Sprintf("dnscache:%s:", clientIP)
+	prefix := []byte(keyprefix)
+	err := d.dbInstance.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		var err error = nil
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			if err != nil {
+				err = txn.Delete(it.Item().Key())
+			}
+		}
+		return err
+	})
+	return err
 }

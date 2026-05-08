@@ -2,14 +2,13 @@ package dns
 
 import (
 	"errors"
-	"log"
 
 	"github.com/miekg/dns"
 )
 
 func queryUpstream(name string, qtype uint16) ([]dns.RR, error) {
 	// Check cache first
-	res, err := GetUpstreamCache().Get(name, qtype)
+	/*res, err := GetUpstreamCache().Get(name, qtype)
 	if err == nil {
 		// Record found in cache
 		log.Printf("query for %s %s resolved via upstream via upstream cache\n", getQueryTypeText(qtype), name)
@@ -17,7 +16,7 @@ func queryUpstream(name string, qtype uint16) ([]dns.RR, error) {
 			return nil, errors.New("record not found via upstream DNS server")
 		}
 		return res, nil
-	}
+	}*/
 
 	// If not cached, perform actual upstream query
 	m1 := new(dns.Msg)

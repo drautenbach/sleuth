@@ -35,7 +35,7 @@ local:
 func TestMain(m *testing.M) {
 	GetConfig().ReadConfigData([]byte(configuration))
 	fw := firewall.LoadFirewallManager()
-	InitDnsServer(fw, nil)
+	InitDnsServer(fw, nil, nil)
 	code := m.Run()
 	os.Exit(code)
 }

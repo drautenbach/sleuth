@@ -8,8 +8,8 @@ import (
 )
 
 func TestProcessDnsQueryLocalA(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("service1.local.", dns.TypeA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("service1.local.", dns.TypeA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeSuccess, errCode)
 	checkTestInt(t, 2, len(res))
 	aRecord1 := res[0].(*dns.A)
@@ -19,8 +19,8 @@ func TestProcessDnsQueryLocalA(t *testing.T) {
 }
 
 func TestProcessDnsQueryLocalAAAA(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("service1.local.", dns.TypeAAAA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("service1.local.", dns.TypeAAAA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeSuccess, errCode)
 	checkTestInt(t, 1, len(res))
 	aRecord1 := res[0].(*dns.AAAA)
@@ -28,15 +28,15 @@ func TestProcessDnsQueryLocalAAAA(t *testing.T) {
 }
 
 func TestProcessDnsQueryBlacklist(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("googleads.g.doubleclick.net.", dns.TypeA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("googleads.g.doubleclick.net.", dns.TypeA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeNameError, errCode)
 	checkTestInt(t, 0, len(res))
 }
 
 func TestProcessDnsQueryBlacklistWhitelisted(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("iadsdk.apple.com.", dns.TypeCNAME, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("iadsdk.apple.com.", dns.TypeCNAME, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeSuccess, errCode)
 	checkTestInt(t, 1, len(res))
 	cnameRecord1 := res[0].(*dns.CNAME)
@@ -44,8 +44,8 @@ func TestProcessDnsQueryBlacklistWhitelisted(t *testing.T) {
 }
 
 func TestProcessDnsQueryUpstreamSuccess(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("dns.google.", dns.TypeA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("dns.google.", dns.TypeA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeSuccess, errCode)
 	checkTestInt(t, 2, len(res))
 	aRecord1 := res[0].(*dns.A)
@@ -56,22 +56,22 @@ func TestProcessDnsQueryUpstreamSuccess(t *testing.T) {
 }
 
 func TestProcessDnsQueryUpstreamNonExistent(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("nonexistentrecord.virtualzone.de.", dns.TypeA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("nonexistentrecord.virtualzone.de.", dns.TypeA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeNameError, errCode)
 	checkTestInt(t, 0, len(res))
 }
 
 func TestProcessDnsQueryEmptyName(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery(".", dns.TypeA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery(".", dns.TypeA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeNameError, errCode)
 	checkTestInt(t, 0, len(res))
 }
 
 func TestProcessDnsQueryWildcard(t *testing.T) {
-	d := InitDnsServer(firewall.LoadFirewallManager(), nil)
-	res, errCode := d.processDnsQuery("*.", dns.TypeA, "127.0.0.1")
+	d := InitDnsServer(firewall.LoadFirewallManager(), nil, nil)
+	res, errCode := d.processDnsQuery("*.", dns.TypeA, "127.0.0.1", "127.0.0.1")
 	checkTestInt(t, dns.RcodeNameError, errCode)
 	checkTestInt(t, 0, len(res))
 }
