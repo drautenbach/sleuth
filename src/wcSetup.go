@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type wcSetup struct {
@@ -30,6 +33,13 @@ func (s *wcSetup) render(c *gin.Context, err error) {
 		"roles":     s.portal.db.GetRoles(),
 		"firewalls": firewalls,
 		"err":       err,
+	})
+}
+
+func (s *wcSetup) renderSSL(c *gin.Context, err error) {
+	s.portal.server.HTML(c, "config_ssl", gin.H{
+		"model": s.portal.config.settings.SSL,
+		"error": err,
 	})
 }
 
@@ -70,6 +80,41 @@ func wcSetupInit(p *Portal) *wcSetup {
 		}
 
 		setup.render(c, err)
+	})
+
+	p.server.router.GET("/config/ssl", func(c *gin.Context) {
+		setup.renderSSL(c, nil)
+	})
+
+	p.server.router.POST("/config/ssl", func(c *gin.Context) {
+		action := c.Request.FormValue("action")
+		domain := c.Request.FormValue("domain")
+		index := slices.Index(p.config.settings.SSL, domain)
+
+		var err error
+		switch action {
+		case "add":
+			if index == -1 {
+				p.config.settings.SSL = append(p.config.settings.SSL, domain)
+			} else {
+				err = fmt.Errorf("%s already in the list of domains", domain)
+			}
+		case "delete":
+			if index == -1 {
+				err = fmt.Errorf("Could not find %s in list of domains to remove", domain)
+			} else {
+				p.config.settings.SSL = slices.Delete(p.config.settings.SSL, index, index+1)
+			}
+		}
+		if err == nil {
+			err = p.db.SaveSettings(*p.config.settings)
+		}
+		if err == nil {
+			p.certManager.HostPolicy = autocert.HostWhitelist(p.config.settings.SSL...)
+			c.Redirect(http.StatusSeeOther, c.Request.RequestURI)
+		} else {
+			setup.renderSSL(c, err)
+		}
 	})
 
 	return setup

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"net/http"
 	"sleuth/internal/db"
 	"sleuth/internal/log"
 	"time"
@@ -13,7 +15,26 @@ func main() {
 
 	defer p.db.Close()
 	// start HTTP and DNS servers concurrently and keep main alive
-	go p.server.router.Run("0.0.0.0:80")
+
+	httpsServer := &http.Server{
+		Addr: ":443",
+		TLSConfig: &tls.Config{
+			GetCertificate: p.certManager.GetCertificate,
+		},
+		Handler: p.server.router,
+	}
+
+	go func() {
+		httpServer := &http.Server{
+			Addr:    ":80",
+			Handler: p.certManager.HTTPHandler(http.HandlerFunc(p.redirectHTTP)),
+		}
+		log.Print("HTTP server running on port 80")
+		log.Error(httpServer.ListenAndServe())
+	}()
+
+	log.Print("HTTPS server running on port 443")
+	log.Error(httpsServer.ListenAndServeTLS("", "")) // certificates handled automatically
 	go p.dns.Start()
 	select {}
 }

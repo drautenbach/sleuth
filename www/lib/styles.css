@@ -38,7 +38,7 @@
 }
 
 /* Dark theme */
-.sl-theme-dark {
+.wa-theme-dark {
   color-scheme: dark;
 
   --docs-overlay-color: hsl(0 0% 0% / 66%);
@@ -50,8 +50,8 @@
 }
 
 /* Utils */
-html.sl-theme-dark .only-light,
-html:not(.sl-theme-dark) .only-dark {
+html.wa-theme-dark .only-light,
+html:not(.wa-theme-dark) .only-dark {
   display: none !important;
 }
 
@@ -228,7 +228,7 @@ code {
   padding: 0.125em 0.25em;
 }
 
-.sl-theme-dark code {
+.wa-theme-dark code {
   background-color: rgba(255 255 255 / 0.03);
 }
 
@@ -423,7 +423,7 @@ pre {
   white-space: pre;
 }
 
-.sl-theme-dark pre {
+.wa-theme-dark pre {
   background-color: var(--sl-color-neutral-50);
 }
 
@@ -1001,7 +1001,7 @@ main {
   }
 }
 
-.sl-theme-dark #menu-toggle {
+.wa-theme-dark #menu-toggle {
   color: white;
 }
 
@@ -1091,16 +1091,16 @@ html.sidebar-open #menu-toggle {
   font-size: 1.25rem;
 }
 
-.sl-theme-dark #theme-selector sl-button::part(base) {
+.wa-theme-dark #theme-selector sl-button::part(base) {
   color: var(--sl-color-neutral-1000);
 }
 
-.sl-theme-dark #icon-toolbar {
+.wa-theme-dark #icon-toolbar {
   background: var(--sl-color-neutral-200);
 }
 
-.sl-theme-dark #icon-toolbar button,
-.sl-theme-dark #icon-toolbar a {
+.wa-theme-dark #icon-toolbar button,
+.wa-theme-dark #icon-toolbar a {
   color: var(--sl-color-neutral-1000);
 }
 
@@ -1517,13 +1517,14 @@ body[data-page^='/tokens/'] .table-wrapper td:first-child code {
 }
 
 
-form-group {
-    margin-bottom: 15px;
+.form-group {
+    display: flex;
+    gap: 10px;                 
+    margin-bottom: 10px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
     color: #666;
 }
 
@@ -1534,7 +1535,9 @@ form-group {
     border-radius: 5px;
     box-sizing: border-box; /* Ensures padding doesn't affect width */
     font-size: 16px;
+    flex: 1;                   
 }
+
 
 .active-section {
   font-weight: bold !important;;
@@ -1555,3 +1558,5 @@ form-group {
 .indent {
   margin-left: 25px;
 }
+
+

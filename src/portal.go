@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 
 	"github.com/gin-contrib/location/v2"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type WebControllers struct {
@@ -31,15 +33,16 @@ type WebControllers struct {
 }
 
 type Portal struct {
-	db       *db.Db
-	security *security.Security
-	network  *network.Network
-	server   WebServer
-	config   GlobalConfiguration
-	fw       firewall.FirewallManager
-	wc       WebControllers
-	dns      dns.DnsServer
-	rules    rules.DNSRulesEngine
+	db          *db.Db
+	security    *security.Security
+	network     *network.Network
+	server      WebServer
+	config      GlobalConfiguration
+	fw          firewall.FirewallManager
+	wc          WebControllers
+	dns         dns.DnsServer
+	rules       rules.DNSRulesEngine
+	certManager *autocert.Manager
 }
 
 func InitPortal() *Portal {
@@ -67,9 +70,22 @@ func InitPortal() *Portal {
 	p.wc.DNSConfig = *wcDnsConfigInit(p)
 	p.server.router.GET("/logout", p.logout)
 
+	p.certManager = &autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(p.config.settings.SSL...),
+		Cache:      autocert.DirCache("certs"), // folder to store certs
+	}
+
 	webShellInit(p)
 
 	return p
+}
+
+func (p *Portal) redirectHTTP(w http.ResponseWriter, r *http.Request) {
+	if slices.Index(p.config.settings.SSL, r.Host) > -1 {
+		target := "https://" + r.Host + r.URL.RequestURI()
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	}
 }
 
 func (p *Portal) logout(c *gin.Context) {

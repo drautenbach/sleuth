@@ -33,10 +33,11 @@
         ]
     },
     {
-        "name": "DNS Config",
+        "name": "Config",
         "items": [
-             { "name": "Categories", "href": "/dnsconfig/categories" },
-             { "name": "Rule Sets", "href": "/dnsconfig/rulesets" }
+             { "name": "DNS Categories", "href": "/config/categories" },
+             { "name": "DNS Rule Sets", "href": "/config/rulesets" },
+             { "name": "SSL", "href": "/config/ssl" }
         ]
     },
     {   "name": "System",

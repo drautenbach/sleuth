@@ -19,17 +19,17 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 	/**** Categories ****/
 
-	p.server.router.GET("/dnsconfig/categories", func(c *gin.Context) {
+	p.server.router.GET("/config/categories", func(c *gin.Context) {
 		categories := p.db.GetDNSCategories()
-		p.server.HTML(c, "dnsconfig_categories", gin.H{
+		p.server.HTML(c, "config_dnscategories", gin.H{
 			"model": gin.H{
 				"Categories": categories,
 			},
 		})
 	})
 
-	p.server.router.GET("/dnsconfig/categories/new", func(c *gin.Context) {
-		p.server.HTML(c, "dnsconfig_category", gin.H{
+	p.server.router.GET("/config/categories/new", func(c *gin.Context) {
+		p.server.HTML(c, "config_dnscategory", gin.H{
 			"action": "create",
 			"title":  "New DNS Category",
 			"model": gin.H{
@@ -38,17 +38,17 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/dnsconfig/categories/new", func(c *gin.Context) {
+	p.server.router.POST("/config/categories/new", func(c *gin.Context) {
 		var cat = &db.DNSCategory{
 			CategoryName: c.PostForm("categoryname"),
 			Enabled:      c.PostForm("enabled") == "on",
 		}
 		var err = p.db.CreateDNSCategory(cat)
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/dnsconfig/categories")
+			c.Redirect(http.StatusSeeOther, "/config/categories")
 			c.Abort()
 		} else {
-			p.server.HTML(c, "dnsconfig_category", gin.H{
+			p.server.HTML(c, "config_dnscategory", gin.H{
 				"action": "create",
 				"title":  "New DNS Category",
 				"error":  err.Error(),
@@ -59,10 +59,10 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/dnsconfig/category/:categoryid", func(c *gin.Context) {
+	p.server.router.GET("/config/category/:categoryid", func(c *gin.Context) {
 		categoryid := c.Param("categoryid")
 		category := p.db.GetDNSCategory(categoryid)
-		p.server.HTML(c, "dnsconfig_category", gin.H{
+		p.server.HTML(c, "config_dnscategory", gin.H{
 			"action": "edit",
 			"title":  "Edit DNS Category",
 			"model": gin.H{
@@ -71,7 +71,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/dnsconfig/category/:categoryid", func(c *gin.Context) {
+	p.server.router.POST("/config/category/:categoryid", func(c *gin.Context) {
 		var cat = p.db.GetDNSCategory(c.Param("categoryid"))
 		var err error
 		if cat == nil {
@@ -83,10 +83,10 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/dnsconfig/categories")
+			c.Redirect(http.StatusSeeOther, "/config/categories")
 			c.Abort()
 		} else {
-			p.server.HTML(c, "dnsconfig_category", gin.H{
+			p.server.HTML(c, "config_dnscategory", gin.H{
 				"action": "edit",
 				"title":  "Edit DNS Category",
 				"error":  err.Error(),
@@ -97,9 +97,9 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/dnsconfig/categories/delete/:categoryid", func(c *gin.Context) {
+	p.server.router.GET("/config/categories/delete/:categoryid", func(c *gin.Context) {
 		category := p.db.GetDNSCategory(c.Param("categoryid"))
-		p.server.HTML(c, "dnsconfig_category_delete", gin.H{
+		p.server.HTML(c, "config_dnscategory_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete DNS Category",
 			"model": gin.H{
@@ -108,14 +108,14 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/dnsconfig/categories/delete/:categoryid", func(c *gin.Context) {
+	p.server.router.POST("/config/categories/delete/:categoryid", func(c *gin.Context) {
 		err := p.db.DeleteDNSCategory(c.Param("categoryid"))
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/dnsconfig/categories")
+			c.Redirect(http.StatusSeeOther, "/config/categories")
 			c.Abort()
 		} else {
 			category := p.db.GetDNSCategory(c.Param("categoryid"))
-			p.server.HTML(c, "dnsconfig_category_delete", gin.H{
+			p.server.HTML(c, "config_dnscategory_delete", gin.H{
 				"action": "delete",
 				"title":  "Delete DNS Category",
 				"error":  err.Error(),
@@ -156,7 +156,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 			return rulesets[i].RuleSetName < rulesets[j].RuleSetName
 		})
 
-		p.server.HTML(c, "dnsconfig_rulesets", gin.H{
+		p.server.HTML(c, "config_dnsrulesets", gin.H{
 			"model": gin.H{
 				"RuleSets": rulesets,
 				"error":    err,
@@ -164,9 +164,9 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	}
 
-	p.server.router.GET("/dnsconfig/rulesets", func(c *gin.Context) { rulesets(c, nil) })
+	p.server.router.GET("/config/rulesets", func(c *gin.Context) { rulesets(c, nil) })
 
-	p.server.router.POST("/dnsconfig/rulesets", func(c *gin.Context) {
+	p.server.router.POST("/config/rulesets", func(c *gin.Context) {
 		rulesetid := c.Request.FormValue("RuleSetId")
 		if rulesetid == "" {
 			rsets := p.db.GetDNSRuleSets()
@@ -191,8 +191,8 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/dnsconfig/rulesets/new", func(c *gin.Context) {
-		p.server.HTML(c, "dnsconfig_ruleset", gin.H{
+	p.server.router.GET("/config/rulesets/new", func(c *gin.Context) {
+		p.server.HTML(c, "config_dnsruleset", gin.H{
 			"action": "create",
 			"title":  "New DNS rule set",
 			"model": gin.H{
@@ -202,7 +202,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/dnsconfig/rulesets/new", func(c *gin.Context) {
+	p.server.router.POST("/config/rulesets/new", func(c *gin.Context) {
 		var ruleset = &db.DNSRuleSet{
 			RuleSetName: c.PostForm("rulesetname"),
 			CategoryId:  c.PostForm("categoryid"),
@@ -224,10 +224,10 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 			err = p.db.CreateDNSRuleSet(ruleset)
 		}
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/dnsconfig/rulesets")
+			c.Redirect(http.StatusSeeOther, "/config/rulesets")
 			c.Abort()
 		} else {
-			p.server.HTML(c, "dnsconfig_ruleset", gin.H{
+			p.server.HTML(c, "config_dnsruleset", gin.H{
 				"action": "create",
 				"title":  "New DNS rule set",
 				"error":  err.Error(),
@@ -239,10 +239,10 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/dnsconfig/ruleset/:rulesetid", func(c *gin.Context) {
+	p.server.router.GET("/config/ruleset/:rulesetid", func(c *gin.Context) {
 		rulesetid := c.Param("rulesetid")
 		ruleset := p.db.GetDNSRuleSet(rulesetid)
-		p.server.HTML(c, "dnsconfig_ruleset", gin.H{
+		p.server.HTML(c, "config_dnsruleset", gin.H{
 			"action": "edit",
 			"title":  "Edit DNS rule set",
 			"model": gin.H{
@@ -252,7 +252,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/dnsconfig/ruleset/:rulesetid", func(c *gin.Context) {
+	p.server.router.POST("/config/ruleset/:rulesetid", func(c *gin.Context) {
 		var rs = p.db.GetDNSRuleSet(c.Param("rulesetid"))
 		var err error
 		if rs == nil {
@@ -277,10 +277,10 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/dnsconfig/rulesets")
+			c.Redirect(http.StatusSeeOther, "/config/rulesets")
 			c.Abort()
 		} else {
-			p.server.HTML(c, "dnsconfig_category", gin.H{
+			p.server.HTML(c, "config_dnscategory", gin.H{
 				"action": "edit",
 				"title":  "Edit DNS Category",
 				"error":  err.Error(),
@@ -292,9 +292,9 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/dnsconfig/rulesets/delete/:rulesetid", func(c *gin.Context) {
+	p.server.router.GET("/config/rulesets/delete/:rulesetid", func(c *gin.Context) {
 		ruleset := p.db.GetDNSCategory(c.Param("rulesetid"))
-		p.server.HTML(c, "dnsconfig_category_delete", gin.H{
+		p.server.HTML(c, "config_dnscategory_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete DNS Category",
 			"model": gin.H{
@@ -303,14 +303,14 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/dnsconfig/rulesets/delete/:rulesetid", func(c *gin.Context) {
+	p.server.router.POST("/config/rulesets/delete/:rulesetid", func(c *gin.Context) {
 		err := p.db.DeleteDNSRuleSet(c.Param("rulesetid"))
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/dnsconfig/rulesets")
+			c.Redirect(http.StatusSeeOther, "/config/rulesets")
 			c.Abort()
 		} else {
 			ruleset := p.db.GetDNSCategory(c.Param("rulesetid"))
-			p.server.HTML(c, "dnsconfig_ruleset_delete", gin.H{
+			p.server.HTML(c, "config_dnsruleset_delete", gin.H{
 				"action": "delete",
 				"title":  "Delete DNS rule set",
 				"error":  err.Error(),
