@@ -52,7 +52,7 @@ func InitPortal() *Portal {
 		fw:      firewall.LoadFirewallManager(),
 		wc:      WebControllers{},
 	}
-	p.security = security.InitSession(p.db)
+	p.security = security.InitSession(p.db, p.network)
 	p.fw.Init(p.db)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
@@ -81,9 +81,30 @@ func InitPortal() *Portal {
 	return p
 }
 
-func (p *Portal) redirectHTTP(w http.ResponseWriter, r *http.Request) {
-	if slices.Index(p.config.settings.SSL, r.Host) > -1 {
-		target := "https://" + r.Host + r.URL.RequestURI()
+func (p *Portal) redirectHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// decide whether redirect is needed
+
+		wl := slices.Index(p.config.settings.SSL, r.Host) > -1
+
+		if r.URL.Scheme == "https" && !wl {
+			http.Redirect(w, r, "http://"+r.Host+r.URL.RequestURI(), http.StatusMovedPermanently)
+			return
+		}
+
+		if r.URL.Scheme == "http" && wl {
+			http.Redirect(w, r, "https://"+r.Host+r.URL.RequestURI(), http.StatusMovedPermanently)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (p *Portal) redirectHTTPS(w http.ResponseWriter, r *http.Request) {
+	if slices.Index(p.config.settings.SSL, r.Host) == -1 {
+		target := "http://" + r.Host + r.URL.RequestURI()
 		http.Redirect(w, r, target, http.StatusMovedPermanently)
 	}
 }
@@ -317,57 +338,4 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 	if rt.serveTemplate != "portal_session" || c.Request.URL.Path != "/logout" {
 		c.Abort()
 	}
-}
-
-func (p *Portal) isAllowed(c *gin.Context) bool {
-
-	// 1) Static content on the web server should always be allowed
-	//if p.server.isWebHost(strings.Split(c.Request.Host, ":")[0]) {
-
-	//}
-
-	ip := clientIP(c.Request)
-	/*if username, err := p.security.GetSession(ip); err == nil {
-		return p.security.IsAllowedPortalAccess(username)
-	}*/
-
-	// 2) Check JWT cookie or Authorization: Bearer token
-
-	// 3) Check by MAC address if client is allowed
-	macaddress := network.Search(ip)
-	node := p.network.FindByIP(ip)
-	if node != nil {
-		macaddress = node.Mac.String()
-	}
-	if macaddress != "" {
-		device := p.db.GetDevice(macaddress)
-		if device == nil {
-			deviceName := ""
-			if node != nil {
-				if node.Mdns != "" {
-					deviceName = node.Mdns
-				}
-				if node.Nbns != "" {
-					deviceName = node.Nbns
-				}
-				if node.Dns != "" {
-					deviceName = node.Dns
-				}
-			}
-			name := deviceName
-			if name == "" {
-				name = "Unknown"
-			}
-			p.db.CreateDevice(&db.DeviceProfile{
-				MACAddress: macaddress,
-				DeviceName: name,
-				HostName:   deviceName,
-			})
-		} else if device.UserName != "" {
-			return p.security.IsAllowedPortalAccess(device.UserName)
-		}
-
-	}
-
-	return false
 }

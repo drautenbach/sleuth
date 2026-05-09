@@ -10,17 +10,19 @@ import (
 	"regexp"
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
+	"sleuth/internal/network"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Security struct {
-	db *db.Db
+	db      *db.Db
+	network *network.Network
 }
 
-func InitSession(db *db.Db) *Security {
-	return &Security{db: db}
+func InitSession(db *db.Db, network *network.Network) *Security {
+	return &Security{db: db, network: network}
 }
 
 func (s *Security) GetSession(IP string) (string, error) {
@@ -49,8 +51,51 @@ func (s *Security) VerifyDomainAccess(clientIP string, hostname string) (bool, u
 		}
 		return false, constants.AccessBlockedUnauthorised
 	} else {
+		if user := s.ResolveUserByMacAddress(clientIP); user != nil && user.Enabled {
+			s.CreateSession(clientIP, user.UserName)
+			return true, constants.AccessAllowed
+		}
+
 		return false, constants.AccessBlockedNotAuthenticated
 	}
+}
+
+func (s *Security) ResolveUserByMacAddress(clientIP string) *db.UserProfile {
+	macaddress := network.Search(clientIP)
+	node := s.network.FindByIP(clientIP)
+	if node != nil {
+		macaddress = node.Mac.String()
+	}
+	if macaddress != "" {
+		device := s.db.GetDevice(macaddress)
+		if device == nil {
+			deviceName := ""
+			if node != nil {
+				if node.Mdns != "" {
+					deviceName = node.Mdns
+				}
+				if node.Nbns != "" {
+					deviceName = node.Nbns
+				}
+				if node.Dns != "" {
+					deviceName = node.Dns
+				}
+			}
+			name := deviceName
+			if name == "" {
+				name = "Unknown"
+			}
+			s.db.CreateDevice(&db.DeviceProfile{
+				MACAddress: macaddress,
+				DeviceName: name,
+				HostName:   deviceName,
+			})
+		} else if device.UserName != "" {
+			return s.db.GetUser(device.UserName)
+		}
+
+	}
+	return nil
 }
 
 func (s *Security) IsAllowedPortalAccess(Username string) bool {

@@ -154,57 +154,18 @@ func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Se
 }
 
 func (s DnsServer) Start() {
-
-	//dns.HandleFunc(".", s.handleDnsRequest)
-
 	log.Printf("Starting at %s\n", GetConfig().ListenAddr)
 	pc, err := newPktinfoConn(":53") // net.ListenPacket("udp", ":53")
-	//err := server.ListenAndServe()
+
 	if err != nil {
 		log.Fatalf("Failed to start server: %s\n ", err.Error())
 	}
-	/*rawConn, err := pc.(*net.UDPConn).SyscallConn()
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = rawConn.Control(func(fd uintptr) {
-		syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IP, syscall.IP_PKTINFO, 1)
-	})
-	if err != nil {
-		log.Fatal(err)
-	}*/
-
-	//myPktinfoConn, err := newPktinfoConn(":53")
 
 	server := &dns.Server{
 		PacketConn: pc,
 		Handler:    dns.HandlerFunc(s.handleDnsRequest),
-		/*Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
-			var localIP net.IP
-
-			// Extract our custom packetAddr
-			if pa, ok := w.RemoteAddr().(*packetAddr); ok {
-				localIP = pa.dstIP
-			}
-
-			// Wrap the ResponseWriter to override LocalAddr()
-			wrapped := &localAddrOverride{
-				ResponseWriter: w,
-				localAddr: &net.UDPAddr{
-					IP:   localIP,
-					Port: 53, // DNS port
-				},
-			}
-
-			s.handleDnsRequest(wrapped, r)
-
-			m := new(dns.Msg)
-			m.SetReply(r)
-			_ = wrapped.WriteMsg(m)
-		}),*/
 	}
 	defer server.Shutdown()
-	//log.Fatal(server.ListenAndServe())
 	log.Fatal(server.ActivateAndServe())
 
 }
