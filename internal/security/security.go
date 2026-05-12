@@ -45,30 +45,50 @@ func (s *Security) CreateSession(IP string, Username string) {
 }
 
 func (s *Security) VerifyDomainAccess(clientIP string, hostname string) (bool, uint16) {
+	var user *db.UserProfile
+
 	if session := s.db.GetSession(clientIP); session != nil {
-		if user := s.db.GetUser(session.Username); user != nil && user.Enabled {
+		if user = s.db.GetUser(session.Username); user != nil && user.Enabled {
 			return true, constants.AccessAllowed
 		}
-		return false, constants.AccessBlockedUnauthorised
 	} else {
-		if user := s.ResolveUserByMacAddress(clientIP); user != nil && user.Enabled {
+		if user = s.ResolveUserByMacAddress(clientIP); user != nil && user.Enabled {
 			s.CreateSession(clientIP, user.UserName)
 			return true, constants.AccessAllowed
 		}
+	}
 
+	settings := s.db.GetSettings()
+	if settings.Mode == db.ModeBlock {
+		return false, constants.AccessBlockedUnauthorised
+	} else {
 		return false, constants.AccessBlockedNotAuthenticated
 	}
+
 }
 
 func (s *Security) ResolveUserByMacAddress(clientIP string) *db.UserProfile {
+	settings := s.db.GetSettings()
+
 	macaddress := network.Search(clientIP)
 	node := s.network.FindByIP(clientIP)
 	if node != nil {
 		macaddress = node.Mac.String()
 	}
-	if macaddress != "" {
-		device := s.db.GetDevice(macaddress)
+
+	var device *db.DeviceProfile
+	var username string
+	if macaddress == "" {
+		if settings.Mode != db.ModeAllow {
+			return nil
+		}
+		username = settings.DefaultRole
+	} else {
+		device = s.db.GetDevice(macaddress)
 		if device == nil {
+			if settings.Mode == db.ModeBlock {
+				return nil
+			}
 			deviceName := ""
 			if node != nil {
 				if node.Mdns != "" {
@@ -90,12 +110,44 @@ func (s *Security) ResolveUserByMacAddress(clientIP string) *db.UserProfile {
 				DeviceName: name,
 				HostName:   deviceName,
 			})
-		} else if device.UserName != "" {
+		}
+
+		if device.UserName != "" {
 			return s.db.GetUser(device.UserName)
 		}
 
+		if settings.Mode == db.ModeCaptive {
+			return nil
+		}
+
+		username := device.DeviceName
+		if username == "" || username == "Unknown" {
+			username = settings.DefaultRole
+		}
+
 	}
-	return nil
+
+	user := s.db.GetUser(username)
+	if user == nil {
+		user = &db.UserProfile{
+			UserName: username,
+			FullName: username,
+			Enabled:  true,
+			Role:     settings.DefaultRole,
+		}
+		if s.db.CreateUser(user) != nil {
+			return nil
+		}
+	}
+
+	if device != nil {
+		device.UserName = user.UserName
+		if s.db.UpdateDevice(device) == nil {
+			return user
+		}
+	}
+
+	return user
 }
 
 func (s *Security) IsAllowedPortalAccess(Username string) bool {

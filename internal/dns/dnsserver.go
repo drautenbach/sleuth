@@ -125,12 +125,14 @@ func (s *DnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 	switch r.Opcode {
 	case dns.OpcodeQuery:
-		s.parseQuery(w.RemoteAddr(), lastDstIP[w.RemoteAddr().String()], m)
+		if w.RemoteAddr() != nil {
+			s.parseQuery(w.RemoteAddr(), lastDstIP[strings.Split(w.RemoteAddr().String(), ":")[0]], m)
+		}
 	}
 
 	err := w.WriteMsg(m)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	w.Close()
 }
@@ -239,16 +241,7 @@ func (p *pktinfoConn) ReadFrom(b []byte) (int, net.Addr, error) {
 
 	// Return the actual client address
 	// Save dstIP somewhere for use in the handler
-	lastDstIP[raddr.String()] = strings.Split(dstIP.String(), ":")[0] // simple map keyed by client addr
+	lastDstIP[strings.Split(raddr.String(), ":")[0]] = strings.Split(dstIP.String(), ":")[0] // simple map keyed by client addr
 
 	return n, raddr, nil
-}
-
-type localAddrOverride struct {
-	dns.ResponseWriter
-	localAddr net.Addr
-}
-
-func (l *localAddrOverride) LocalAddr() net.Addr {
-	return l.localAddr
 }

@@ -2,14 +2,16 @@ package main
 
 import (
 	"crypto/tls"
+	"log"
 	"net/http"
 	"sleuth/internal/db"
-	"sleuth/internal/log"
+	logger "sleuth/internal/log"
+	"strings"
 	"time"
 )
 
 func main() {
-	log.Info("Starting Sleuth %s...\n", AppVersion)
+	logger.Info("Starting Sleuth %s...\n", AppVersion)
 	p := InitPortal()
 	initDefaults(p)
 
@@ -22,10 +24,11 @@ func main() {
 			TLSConfig: &tls.Config{
 				GetCertificate: p.certManager.GetCertificate,
 			},
-			Handler: p.certManager.HTTPHandler(p.redirectHandler(p.server.router)),
+			Handler:  p.certManager.HTTPHandler(p.redirectHandler(p.server.router)),
+			ErrorLog: log.New(&filteredLogger{logger: log.Default()}, "", log.LstdFlags),
 		}
-		log.Print("HTTPS server running on port 443")
-		log.Error(httpsServer.ListenAndServeTLS("", "")) // certificates handled automatically
+		logger.Print("HTTPS server running on port 443")
+		logger.Error(httpsServer.ListenAndServeTLS("", "")) // certificates handled automatically
 	}()
 
 	go func() {
@@ -33,8 +36,8 @@ func main() {
 			Addr:    ":80",
 			Handler: p.certManager.HTTPHandler(p.redirectHandler(p.server.router)),
 		}
-		log.Print("HTTP server running on port 80")
-		log.Error(httpServer.ListenAndServe())
+		logger.Print("HTTP server running on port 80")
+		logger.Error(httpServer.ListenAndServe())
 	}()
 
 	go p.dns.Start()
@@ -76,4 +79,18 @@ func initDefaults(p *Portal) {
 		p.db.CreateUser(up)
 	}
 
+}
+
+type filteredLogger struct {
+	logger *log.Logger
+}
+
+func (f *filteredLogger) Write(p []byte) (n int, err error) {
+	msg := string(p)
+	if strings.Contains(msg, "acme/autocert: host") &&
+		strings.Contains(msg, "not configured in HostWhitelist") {
+		// ignore this message
+		return len(p), nil
+	}
+	return f.logger.Writer().Write(p)
 }

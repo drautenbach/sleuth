@@ -48,7 +48,7 @@ type enumPortalMode int
 const (
 	ModeCaptive enumPortalMode = iota
 	ModeAllow                  = 1
-	ModeBlock                  = 0
+	ModeBlock                  = 2
 )
 
 type Session struct {

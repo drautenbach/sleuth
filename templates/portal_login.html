@@ -23,15 +23,25 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                 </div>
+                
+                {{if .message}}
+                    <div >
+                        {message}
+                    </div>
+                {{end}}
+                {{if .error}}
+                    <div class="error-message">
+                        {{.error}}
+                    </div>
+                {{end}}
+                <br />
+
                 <div class="button-group">
                     <wa-button variant="primary" type="submit" name="sleuth_action" value="login">Login</wa-button>
+                    {{if .allow_register}}
+                    <wa-button variant="primary" type="submit" name="sleuth_action" value="register">Register</wa-button>
+                    {{end}}
                 </div>
         </div>
-                {{if .error}}
-                    <wa-alert variant="danger" open>
-                        {{.error}}
-                    </wa-alert>
-                {{end}}
-
-            </form>
+        </form>
     </body>

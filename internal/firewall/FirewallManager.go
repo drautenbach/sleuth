@@ -116,6 +116,10 @@ func IP4fromOffset(offset uint16) string {
 func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32, reasoncode uint16, if_ip string) (string, error) {
 
 	if fr := m.db.GetFwdRuleByHostname(clientIP, name, qtype); fr != nil {
+		if fr.ReasonCode != reasoncode {
+			fr.ReasonCode = reasoncode
+			m.db.ExtendFwdRule(fr, time.Now().Add(time.Duration(330)*time.Second))
+		}
 		return IP4fromOffset(fr.DestIPOffset), nil
 	}
 
@@ -153,6 +157,7 @@ func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint1
 	if r.DestIPOffset == 0 {
 		return "0.0.0.0", errors.New("no available IP offset")
 	} else {
+		r.DestIP = IP4fromOffset(r.DestIPOffset)
 		err := m.db.CreateFwdRule(r, time.Now().Add(time.Duration(330)*time.Second))
 		if err == nil && m.fw != nil {
 			m.fw.AddForwardRule(r)

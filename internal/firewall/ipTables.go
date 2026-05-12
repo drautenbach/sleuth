@@ -5,6 +5,7 @@ package firewall
 
 import (
 	"fmt"
+	"os"
 	"sleuth/internal/constants"
 	"strconv"
 
@@ -28,6 +29,8 @@ func (m *ipTables) Name() string {
 }
 
 func (m *ipTables) Init(fwdrules []constants.FwdRule) error {
+	os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0644)
+
 	// Flush the NAT table
 	err := m.ipt.ClearChain("nat", "PREROUTING")
 	if err != nil {

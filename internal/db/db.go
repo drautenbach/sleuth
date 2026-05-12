@@ -501,7 +501,7 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 
 		fwd, err := txn.Get([]byte(fwdKey))
 		if fwd != nil {
-			return fmt.Errorf("forward rule %d:%d already exists", r.DestIPOffset, r.QType)
+			return fmt.Errorf("forward rule %s:%d already exists", r.DestIP, r.QType)
 		}
 
 		r.CacheExpiry = expires

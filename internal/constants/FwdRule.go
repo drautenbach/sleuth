@@ -19,6 +19,7 @@ type FwdRule struct {
 	ClientIP     string
 	InterfaceIP  string
 	OrigIP       string
+	DestIP       string
 	DestIPOffset uint16
 	Hostname     string
 	QType        uint16

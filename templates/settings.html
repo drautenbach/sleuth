@@ -3,14 +3,15 @@
     <form id="settings_form" method="POST">
         <div class="form-layout">
             <h3>{{.title}}</h3>
-                <div class="form-group border">
-                    <strong>Guest internet (gateway) access</strong>
+                    <h5>Guest internet (gateway) access</h5>
 
+                <div >
                     <label for="default_access_profile">Authentication behaviour
                         <wa-tooltip content="Control the gateway behaviour of unidentified users/devices to the network" hoist>
                             <wa-icon name="info-circle"></wa-icon>
                         </wa-tooltip>
                     </label>
+
                     <div class="indent">
                         <wa-radio-group id="settings_mode" name="mode" value="{{.model.Mode}}">
                             <wa-radio value="0" {{if eq $.model.Mode 0}} checked{{end}}>Require Login (Captive Portal)
@@ -34,7 +35,7 @@
 
                             <wa-radio value="2" {{if eq $.model.Mode 2}} checked{{end}}>Block
                                 <wa-tooltip content="Serve the unauthorised page with no option to login.  The user will need to contact the administrator to provide access" hoist>
-                                    <wa-icon name="info-circle"></wa-icon>
+                                    <wa-icon name="info"></wa-icon>
                                 </wa-tooltip>   
                             </wa-radio>
 
@@ -57,12 +58,10 @@
                         </wa-dropdown>
                     </div>
                     {{end}}
-
                 </div>
-                <h3>{{.title}}</h3>
-                <div class="form-group border">
-                    <strong>Firewall</strong>
 
+                <h5>Firewall</h5>
+                    <div>
                     <label for="firewall">Default NAT firewall
                         <wa-tooltip content="Override firewall used to apply network access policies.">
                             <wa-icon name="info-circle"></wa-icon>
