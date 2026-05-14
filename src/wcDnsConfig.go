@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"sleuth/internal/db"
+	"strconv"
+	"time"
 
 	"sort"
 
@@ -61,7 +63,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 	p.server.router.GET("/config/category/:categoryid", func(c *gin.Context) {
 		categoryid := c.Param("categoryid")
-		category := p.db.GetDNSCategory(categoryid)
+		category := p.db.FindDNSCategory(categoryid)
 		p.server.HTML(c, "config_dnscategory", gin.H{
 			"action": "edit",
 			"title":  "Edit DNS Category",
@@ -72,7 +74,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	})
 
 	p.server.router.POST("/config/category/:categoryid", func(c *gin.Context) {
-		var cat = p.db.GetDNSCategory(c.Param("categoryid"))
+		var cat = p.db.FindDNSCategory(c.Param("categoryid"))
 		var err error
 		if cat == nil {
 			err = fmt.Errorf("DNS category %s does not exist", c.Param("categoryid"))
@@ -97,8 +99,8 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/config/categories/delete/:categoryid", func(c *gin.Context) {
-		category := p.db.GetDNSCategory(c.Param("categoryid"))
+	p.server.router.GET("/config/categories/delete/:category", func(c *gin.Context) {
+		category := p.db.FindDNSCategory(c.Param("category"))
 		p.server.HTML(c, "config_dnscategory_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete DNS Category",
@@ -108,29 +110,36 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/config/categories/delete/:categoryid", func(c *gin.Context) {
-		err := p.db.DeleteDNSCategory(c.Param("categoryid"))
-		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/config/categories")
-			c.Abort()
+	p.server.router.POST("/config/categories/delete/:category", func(c *gin.Context) {
+		cat := p.db.FindDNSCategory(c.Param("category"))
+		var err error
+		if cat != nil {
+			err = p.db.DeleteDNSCategory(cat.CategoryId)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, "/config/categories")
+				c.Abort()
+				return
+			}
 		} else {
-			category := p.db.GetDNSCategory(c.Param("categoryid"))
-			p.server.HTML(c, "config_dnscategory_delete", gin.H{
-				"action": "delete",
-				"title":  "Delete DNS Category",
-				"error":  err.Error(),
-				"model": gin.H{
-					"Category": category,
-				},
-			})
+			err = fmt.Errorf("Could not locate category %s", c.Param("category"))
 		}
+
+		p.server.HTML(c, "config_dnscategory_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete DNS Category",
+			"error":  err.Error(),
+			"model": gin.H{
+				"Category": cat,
+			},
+		})
+
 	})
 
 	/**** RuleSets ****/
 
 	rulesets := func(c *gin.Context, err error) {
 		categories := p.db.GetDNSCategories()
-		categoryMap := make(map[string]string)
+		categoryMap := make(map[uint]string)
 		for _, category := range categories {
 			categoryMap[category.CategoryId] = category.CategoryName
 		}
@@ -145,7 +154,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 				rulesets[i].Schedule = "Disabled"
 			}
 			if categoryName, exists := categoryMap[rulesets[i].CategoryId]; exists {
-				rulesets[i].CategoryId = categoryName
+				rulesets[i].CategoryName = categoryName
 			}
 		}
 
@@ -167,26 +176,34 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	p.server.router.GET("/config/rulesets", func(c *gin.Context) { rulesets(c, nil) })
 
 	p.server.router.POST("/config/rulesets", func(c *gin.Context) {
-		rulesetid := c.Request.FormValue("RuleSetId")
-		if rulesetid == "" {
-			rsets := p.db.GetDNSRuleSets()
-			for i := range rsets {
-				if rsets[i].Enabled && rsets[i].Source != "" {
-					err := p.security.UpdateRuleSet(rsets[i])
-					if err != nil {
-						rulesets(c, err)
-						return
-					}
+		action := c.Request.FormValue("action")
 
-				}
-			}
-			rulesets(c, nil)
+		if action == "reindex" {
+			p.rules.ReIndex()
+			c.Redirect(http.StatusSeeOther, c.Request.RequestURI)
+			return
 		} else {
-			rs := p.db.GetDNSRuleSet(rulesetid)
-			if rs == nil {
-				rulesets(c, fmt.Errorf("Ruleset %s not found", c.Request.FormValue("RuleSetId")))
+			rulesetid := c.Request.FormValue("RuleSetId")
+			if rulesetid == "" {
+				rsets := p.db.GetDNSRuleSets()
+				for i := range rsets {
+					if rsets[i].Enabled && rsets[i].Source != "" {
+						err := p.rules.UpdateRuleSet(rsets[i])
+						if err != nil {
+							rulesets(c, err)
+							return
+						}
+
+					}
+				}
+				rulesets(c, nil)
 			} else {
-				rulesets(c, p.security.UpdateRuleSet(*rs))
+				rs := p.db.GetDNSRuleSet(rulesetid)
+				if rs == nil {
+					rulesets(c, fmt.Errorf("Ruleset %s not found", c.Request.FormValue("RuleSetId")))
+				} else {
+					rulesets(c, p.rules.UpdateRuleSet(*rs))
+				}
 			}
 		}
 	})
@@ -205,7 +222,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	p.server.router.POST("/config/rulesets/new", func(c *gin.Context) {
 		var ruleset = &db.DNSRuleSet{
 			RuleSetName: c.PostForm("rulesetname"),
-			CategoryId:  c.PostForm("categoryid"),
+			CategoryId:  str2uint(c.PostForm("categoryid")),
 			Source:      c.PostForm("source"),
 			Schedule:    c.PostForm("schedule"),
 			Enabled:     c.PostForm("enabled") == "on",
@@ -268,7 +285,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 		if err == nil {
 			rs.RuleSetName = c.PostForm("rulesetname")
-			rs.CategoryId = c.PostForm("categoryid")
+			rs.CategoryId = str2uint(c.PostForm("categoryid"))
 			rs.Source = c.PostForm("source")
 			rs.Schedule = c.PostForm("schedule")
 			rs.Enabled = c.PostForm("enabled") == "on"
@@ -293,7 +310,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	})
 
 	p.server.router.GET("/config/rulesets/delete/:rulesetid", func(c *gin.Context) {
-		ruleset := p.db.GetDNSCategory(c.Param("rulesetid"))
+		ruleset := p.db.GetDNSRuleSet(c.Param("rulesetid"))
 		p.server.HTML(c, "config_dnscategory_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete DNS Category",
@@ -309,7 +326,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 			c.Redirect(http.StatusSeeOther, "/config/rulesets")
 			c.Abort()
 		} else {
-			ruleset := p.db.GetDNSCategory(c.Param("rulesetid"))
+			ruleset := p.db.GetDNSRuleSet(c.Param("rulesetid"))
 			p.server.HTML(c, "config_dnsruleset_delete", gin.H{
 				"action": "delete",
 				"title":  "Delete DNS rule set",
@@ -321,5 +338,41 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
+	p.server.router.GET("/rules/eval", func(c *gin.Context) {
+		p.server.HTML(c, "rules_eval", gin.H{
+			"action": "eval",
+			"title":  "DNS rule evaluator",
+			"model": gin.H{
+				"Name": "",
+			},
+		})
+	})
+
+	p.server.router.POST("/rules/eval", func(c *gin.Context) {
+		name := c.Request.FormValue("name")
+		now := time.Now()
+
+		duration := time.Since(now)
+		hits := p.rules.Test(name + ".")
+		p.server.HTML(c, "rules_eval", gin.H{
+			"action": "eval",
+			"title":  "DNS rule evaluator",
+			"model": gin.H{
+				"name": name,
+				"hits": hits,
+				"stats": gin.H{
+					"duration": duration.String(),
+					"count":    len(hits),
+				},
+			},
+		})
+
+	})
+
 	return dc
+}
+
+func str2uint(str string) uint {
+	i, _ := strconv.ParseUint(str, 10, 64)
+	return uint(i)
 }

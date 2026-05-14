@@ -1,0 +1,25 @@
+{{template "template-start.html" .}}
+
+    <form id="settings_form" method="POST">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                    <h5>DNS Rule evaluator</h5>
+        
+            <div class="form-group">
+                <label for="name">Host name:</label>
+                <wa-input name="name" value="{{.model.name}}"></wa-input>
+                <wa-button type="submit"><wa-icon name="magnifying-glass"></wa-icon></wa-button>
+            </div>
+
+
+            {{with .model.stats}}
+                <div>
+                    <span>{{.count}} record(s) in {{.duration}}</span>
+                </div>
+            {{end}}
+
+        </div>
+
+    </form>
+
+{{template "template-end.html" .}}

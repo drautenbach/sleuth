@@ -7,6 +7,7 @@ import (
 	"os"
 	"sleuth/internal/constants"
 	"sleuth/internal/log"
+	"slices"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -758,13 +759,14 @@ func (d *Db) DeleteSession(IP string) error {
 /***************** CRUD **************************/
 func get[T any](d *Db, key string) *T {
 	var result T
+
 	err := d.dbInstance.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
 		if err != nil {
-			if err == badger.ErrKeyNotFound {
+			/*if err == badger.ErrKeyNotFound {
 				// Return nil error if key not found
 				return nil
-			}
+			}*/
 			return err
 		}
 
@@ -854,6 +856,20 @@ func update[T any](d *Db, key string, record *T) error {
 	})
 }
 
+func set[T any](d *Db, key string, record *T) error {
+	return d.dbInstance.Update(func(txn *badger.Txn) error {
+		val, err := json.Marshal(record)
+		if err != nil {
+			return err
+		}
+		err = txn.Set([]byte(key), val)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
+}
+
 func delete(d *Db, key string) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
@@ -873,37 +889,52 @@ func delete(d *Db, key string) error {
 
 /***************** DNS Config - Category **************************/
 
-func (d *Db) GetDNSCategory(categoryid string) *DNSCategory {
-	return get[DNSCategory](d, fmt.Sprintf("dnscategory:%s", categoryid))
+func (d *Db) GetDNSCategory(categoryid uint) *DNSCategory {
+	return get[DNSCategory](d, fmt.Sprintf("dnscategory:%d", categoryid))
 }
 
 func (d *Db) GetDNSCategories() []DNSCategory {
 	return getAll[DNSCategory](d, "dnscategory:")
 }
 
-func (d *Db) CreateDNSCategory(c *DNSCategory) error {
-	if c.CategoryId == "" {
-		id, err := generateUID()
-		if err != nil {
-			return err
+func (d *Db) FindDNSCategory(CategoryName string) *DNSCategory {
+	cats := getAll[DNSCategory](d, "dnscategory:")
+	for i := range cats {
+		if cats[i].CategoryName == CategoryName {
+			return &cats[i]
 		}
-		c.CategoryId = id
 	}
-	return create(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c, 0)
+	return nil
+}
+
+func (d *Db) CreateDNSCategory(c *DNSCategory) error {
+	cats := d.GetDNSCategories()
+	var id uint
+	for i := range cats {
+		if cats[i].CategoryName == c.CategoryName {
+			return fmt.Errorf("DNS Category %s already exist", c.CategoryName)
+		}
+		if cats[i].CategoryId >= id {
+			id = cats[i].CategoryId
+		}
+	}
+
+	c.CategoryId = id + 1
+	return create(d, fmt.Sprintf("dnscategory:%d", c.CategoryId), c, 0)
 }
 
 func (d *Db) UpdateDNSCategory(c *DNSCategory) error {
-	return update(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c)
+	return update(d, fmt.Sprintf("dnscategory:%d", c.CategoryId), c)
 }
 
-func (d *Db) DeleteDNSCategory(categoryid string) error {
+func (d *Db) DeleteDNSCategory(categoryid uint) error {
 	rulesets := d.GetDNSRuleSets()
 	for _, rule := range rulesets {
 		if rule.CategoryId == categoryid {
 			return fmt.Errorf("Category in use by %s rule set", rule.RuleSetName)
 		}
 	}
-	return delete(d, fmt.Sprintf("dnscategory:%s", categoryid))
+	return delete(d, fmt.Sprintf("dnscategory:%d", categoryid))
 }
 
 /***************** DNS Config - RuleSet **************************/
@@ -939,6 +970,113 @@ func (d *Db) UpdateDNSRuleSet(c *DNSRuleSet) error {
 
 func (d *Db) DeleteDNSRuleSet(dnsrulesetid string) error {
 	return delete(d, fmt.Sprintf("dnsruleset:%s", dnsrulesetid))
+}
+
+func (d *Db) UpdateDNSRules(rs *DNSRuleSet, r *[]string) error {
+	err := set(d, fmt.Sprintf("dnsrules:%s", rs.RuleSetId), r)
+	if err != nil {
+		return err
+	}
+	rs.LastUpdated = time.Now()
+	rs.Count = uint(len(*r))
+	return update(d, fmt.Sprintf("dnsruleset:%s", rs.RuleSetId), rs)
+}
+
+func (d *Db) GetDNSRules(rulesetid string) *[]string {
+	return get[[]string](d, fmt.Sprintf("dnsrules:%s", rulesetid))
+}
+
+func (d *Db) GetDnsHostRule(hostname string) *DNSHostRule {
+	return get[DNSHostRule](d, fmt.Sprintf("dnsrule:%s", hostname))
+}
+
+func (d *Db) SetDnsHostRule(hr *DNSHostRule) error {
+	return set(d, fmt.Sprintf("dnsrule:%s", hr.Name), hr)
+}
+
+func (d *Db) ClearDnsHostRules() error {
+	prefix := []byte("dnsrule:")
+
+	err := d.dbInstance.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var hr DNSHostRule
+			if err := json.Unmarshal(v, &hr); err != nil {
+				return err
+			}
+
+			txn.Delete(item.Key())
+		}
+		return nil
+	})
+
+	return err
+}
+
+func (d *Db) RemoveCategoryFromDnsHostRules(categoryId uint) error {
+	prefix := []byte("dnsrule:")
+
+	err := d.dbInstance.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = prefix
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
+			if err != nil {
+				return err
+			}
+			var hr DNSHostRule
+			if err := json.Unmarshal(v, &hr); err != nil {
+				return err
+			}
+
+			idx := slices.Index(hr.ExactCategories, categoryId)
+			update := false
+			if idx > -1 {
+				hr.ExactCategories = slices.Delete(hr.ExactCategories, idx, idx)
+				update = true
+			}
+			idx = slices.Index(hr.WildcardCategories, categoryId)
+			if idx > -1 {
+				hr.WildcardCategories = slices.Delete(hr.WildcardCategories, idx, idx)
+				update = true
+			}
+			if update {
+				if len(hr.WildcardCategories) == 0 && len(hr.ExactCategories) == 0 {
+					txn.Delete(item.Key())
+				} else {
+					val, err := json.Marshal(hr)
+					if err != nil {
+						return err
+					}
+					err = txn.Set(item.Key(), val)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+		}
+		return nil
+	})
+
+	return err
+}
+
+func (d *Db) GetDnsHostRules(string) {
+
 }
 
 /***************** DNS Cache **************************/

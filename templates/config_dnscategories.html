@@ -13,7 +13,7 @@
         <tbody>
             {{range .model.Categories}}
             <tr>
-                <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td><a href="category/{{.CategoryName}}"><wa-icon name="pencil-square"></wa-icon></a></td>
                 <td>{{.CategoryName}}</td>
                 <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
             </tr>

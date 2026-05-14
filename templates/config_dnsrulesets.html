@@ -3,7 +3,9 @@
     <form method="POST">
         <span class="right">
         <nobr>
-            <wa-button size="xs" name="refresh" type="submit" title="Refresh all"><wa-icon name="refresh"></wa-icon></wa-button>
+            <a href="/rules/eval"><wa-button size="xs" type="button"><wa-icon name="flask"></wa-icon></wa-button></a>
+            <wa-button size="xs" name="action" value="reindex" type="submit" title="Reindex"><wa-icon name="folder-tree"></wa-icon></wa-button>
+            <wa-button size="xs" name="action" value="refresh" type="submit" title="Refresh all"><wa-icon name="refresh"></wa-icon></wa-button>
             <wa-button size="xs" href="rulesets/new"><wa-icon name="plus"></wa-icon></wa-button>
         </nobr>
         </span>
@@ -31,7 +33,7 @@
                 <td>{{if (eq .Source "")}}{{.RuleSetName}}{{else}}<a href="{{.Source}}" target="_blank">{{.RuleSetName}}</a>{{end}}</td>
                 <td>{{.Description}}</td>
                 <td>{{.Schedule}}</td>
-                <td>{{len .Rules}}</td>
+                <td>{{.Count}}</td>
                 <td>{{.LastUpdated}}</td>
                 <td>
                     <form method="POST">

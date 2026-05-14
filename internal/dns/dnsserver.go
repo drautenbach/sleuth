@@ -149,9 +149,9 @@ func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Se
 	initLogging()
 	GetUpstreamCache().Init()
 	updateLocalRecords()
-	updateBlacklistRecords()
+	//updateBlacklistRecords()
 	updateWhitelistRecords()
-	initBlacklistRenewal()
+	//initBlacklistRenewal()
 	return s
 }
 
