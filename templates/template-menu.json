@@ -35,6 +35,7 @@
     {
         "name": "Config",
         "items": [
+            { "name": "APIs", "href": "/config/api" },
              { "name": "DNS Categories", "href": "/config/categories" },
              { "name": "DNS Rule Sets", "href": "/config/rulesets" },
              { "name": "SSL", "href": "/config/ssl" }

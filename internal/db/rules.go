@@ -3,16 +3,17 @@ package db
 import "time"
 
 type DNSCategory struct {
-	CategoryId   uint
-	CategoryName string
-	Enabled      bool
+	CategoryId       string
+	CategoryName     string
+	ParentCategoryId *string
+	Enabled          bool
 }
 
 type DNSRuleSet struct {
 	RuleSetId    string
 	RuleSetName  string
 	Description  string
-	CategoryId   uint
+	CategoryId   string
 	CategoryName string
 	External     bool
 	Source       string
@@ -25,6 +26,7 @@ type DNSRuleSet struct {
 
 type DNSHostRule struct {
 	Name               string
-	ExactCategories    []uint
-	WildcardCategories []uint
+	DomScanCategories  []string
+	ExactCategories    []string
+	WildcardCategories []string
 }

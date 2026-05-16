@@ -6,6 +6,7 @@
         <thead>
             <tr>
                 <th></th>
+                <th>ID</th>
                 <th>Category</th>
                 <th></th>
             </tr>
@@ -13,10 +14,19 @@
         <tbody>
             {{range .model.Categories}}
             <tr>
-                <td><a href="category/{{.CategoryName}}"><wa-icon name="pencil-square"></wa-icon></a></td>
-                <td>{{.CategoryName}}</td>
+                <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td><b>{{.CategoryId}}</b></td>
+                <td><b>{{.CategoryName}}</b></td>
                 <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
             </tr>
+                {{range .SubCategories}}
+                        <tr>
+                        <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                        <td>&nbsp;&nbsp;{{.CategoryId}}</td>
+                        <td>&nbsp;&nbsp;{{.CategoryName}}</td>
+                        <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
+                    </tr>
+                {{end}}
             {{end}}
         </tbody>
     </table>

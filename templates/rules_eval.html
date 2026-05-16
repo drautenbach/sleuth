@@ -11,6 +11,24 @@
                 <wa-button type="submit"><wa-icon name="magnifying-glass"></wa-icon></wa-button>
             </div>
 
+            {{with .model.hits}}
+                <br/>
+                <table border="1">
+                    <tr>
+                        <th>Category</th>
+                        <th>Description</th>
+                    </tr>
+                
+                {{range .}} 
+                <tr>
+                    <td>{{.CategoryId}}</td>
+                    <td>{{.CategoryName}}</td>
+                </tr>
+                {{end}}
+                </table>
+
+            {{end}}
+
 
             {{with .model.stats}}
                 <div>

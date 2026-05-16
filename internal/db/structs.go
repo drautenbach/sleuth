@@ -41,6 +41,17 @@ type Settings struct {
 	SelfRegEnabled bool
 	Firewall       string
 	SSL            []string
+	APIs           struct {
+		DomScan API_DomScan
+	}
+}
+
+type API_DomScan struct {
+	Key      string
+	Enabled  bool
+	Services struct {
+		WebSiteCategorization bool
+	}
 }
 
 type enumPortalMode int

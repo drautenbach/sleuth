@@ -1,0 +1,25 @@
+{{template "template-start.html" .}}
+
+    <span class="right"><wa-button href="categories/new" style="font-size: 10px;"><wa-icon name="plus"></wa-icon></wa-button></span>
+    <h2>APIs</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th></th>
+                <th>API</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.APIs}}
+            <tr>
+                <td><a href="api/{{.api}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td>{{.api}}</td>
+                <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+
+{{template "template-end.html" .}}

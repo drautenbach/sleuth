@@ -30,7 +30,7 @@ type WebControllers struct {
 	Setup     wcSetup
 	Stats     wcStats
 	Profiles  wcProfiles
-	DNSConfig wcDnsConfig
+	DNSConfig wcConfig
 }
 
 type Portal struct {
@@ -58,7 +58,7 @@ func InitPortal() *Portal {
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
-	p.rules = *rules.Init(p.db)
+	p.rules = *rules.Init(p.db, p.config.settings)
 	p.rules.InitDefaults()
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
 	p.dns = *dns.InitDnsServer(p.fw, p.db, p.security)
@@ -68,7 +68,7 @@ func InitPortal() *Portal {
 	p.wc.Setup = *wcSetupInit(p)
 	p.wc.Profiles = *wcProfilesInit(p)
 	p.wc.Stats = *wcStatsInit(p)
-	p.wc.DNSConfig = *wcDnsConfigInit(p)
+	p.wc.DNSConfig = *wcConfigInit(p)
 	p.server.router.GET("/logout", p.logout)
 
 	p.certManager = &autocert.Manager{

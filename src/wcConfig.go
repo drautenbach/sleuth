@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"sleuth/internal/db"
-	"strconv"
 	"time"
 
 	"sort"
@@ -13,19 +12,50 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type wcDnsConfig struct {
+type wcConfig struct {
 }
 
-func wcDnsConfigInit(p *Portal) *wcDnsConfig {
-	dc := &wcDnsConfig{}
+type category struct {
+	CategoryName  string
+	CategoryId    string
+	SubCategories []category
+	Enabled       bool
+}
+
+func wcConfigInit(p *Portal) *wcConfig {
+	dc := &wcConfig{}
 
 	/**** Categories ****/
 
 	p.server.router.GET("/config/categories", func(c *gin.Context) {
 		categories := p.db.GetDNSCategories()
+
+		tlc := make(map[string]category, 0)
+		for _, cat := range categories {
+			if cat.ParentCategoryId == nil {
+				tlc[cat.CategoryId] = category{
+					CategoryName:  cat.CategoryName,
+					CategoryId:    cat.CategoryId,
+					SubCategories: make([]category, 0),
+					Enabled:       cat.Enabled,
+				}
+			}
+		}
+		for _, cat := range categories {
+			if cat.ParentCategoryId != nil {
+				parent := tlc[*cat.ParentCategoryId]
+				parent.SubCategories = append(parent.SubCategories, category{
+					CategoryName: cat.CategoryName,
+					CategoryId:   cat.CategoryId,
+					Enabled:      cat.Enabled,
+				})
+				tlc[*cat.ParentCategoryId] = parent
+			}
+		}
+
 		p.server.HTML(c, "config_dnscategories", gin.H{
 			"model": gin.H{
-				"Categories": categories,
+				"Categories": tlc,
 			},
 		})
 	})
@@ -63,7 +93,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 	p.server.router.GET("/config/category/:categoryid", func(c *gin.Context) {
 		categoryid := c.Param("categoryid")
-		category := p.db.FindDNSCategory(categoryid)
+		category := p.db.GetDNSCategory(categoryid)
 		p.server.HTML(c, "config_dnscategory", gin.H{
 			"action": "edit",
 			"title":  "Edit DNS Category",
@@ -74,7 +104,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	})
 
 	p.server.router.POST("/config/category/:categoryid", func(c *gin.Context) {
-		var cat = p.db.FindDNSCategory(c.Param("categoryid"))
+		var cat = p.db.GetDNSCategory(c.Param("categoryid"))
 		var err error
 		if cat == nil {
 			err = fmt.Errorf("DNS category %s does not exist", c.Param("categoryid"))
@@ -99,8 +129,8 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		}
 	})
 
-	p.server.router.GET("/config/categories/delete/:category", func(c *gin.Context) {
-		category := p.db.FindDNSCategory(c.Param("category"))
+	p.server.router.GET("/config/categories/delete/:categoryid", func(c *gin.Context) {
+		category := p.db.GetDNSCategory(c.Param("categoryid"))
 		p.server.HTML(c, "config_dnscategory_delete", gin.H{
 			"action": "delete",
 			"title":  "Delete DNS Category",
@@ -110,36 +140,29 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 		})
 	})
 
-	p.server.router.POST("/config/categories/delete/:category", func(c *gin.Context) {
-		cat := p.db.FindDNSCategory(c.Param("category"))
-		var err error
-		if cat != nil {
-			err = p.db.DeleteDNSCategory(cat.CategoryId)
-			if err == nil {
-				c.Redirect(http.StatusSeeOther, "/config/categories")
-				c.Abort()
-				return
-			}
+	p.server.router.POST("/config/categories/delete/:categoryid", func(c *gin.Context) {
+		err := p.db.DeleteDNSCategory(c.Param("categoryid"))
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/config/categories")
+			c.Abort()
 		} else {
-			err = fmt.Errorf("Could not locate category %s", c.Param("category"))
+			category := p.db.GetDNSCategory(c.Param("categoryid"))
+			p.server.HTML(c, "config_dnscategory_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete DNS Category",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Category": category,
+				},
+			})
 		}
-
-		p.server.HTML(c, "config_dnscategory_delete", gin.H{
-			"action": "delete",
-			"title":  "Delete DNS Category",
-			"error":  err.Error(),
-			"model": gin.H{
-				"Category": cat,
-			},
-		})
-
 	})
 
 	/**** RuleSets ****/
 
 	rulesets := func(c *gin.Context, err error) {
 		categories := p.db.GetDNSCategories()
-		categoryMap := make(map[uint]string)
+		categoryMap := make(map[string]string)
 		for _, category := range categories {
 			categoryMap[category.CategoryId] = category.CategoryName
 		}
@@ -154,7 +177,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 				rulesets[i].Schedule = "Disabled"
 			}
 			if categoryName, exists := categoryMap[rulesets[i].CategoryId]; exists {
-				rulesets[i].CategoryName = categoryName
+				rulesets[i].CategoryId = categoryName
 			}
 		}
 
@@ -222,7 +245,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	p.server.router.POST("/config/rulesets/new", func(c *gin.Context) {
 		var ruleset = &db.DNSRuleSet{
 			RuleSetName: c.PostForm("rulesetname"),
-			CategoryId:  str2uint(c.PostForm("categoryid")),
+			CategoryId:  c.PostForm("categoryid"),
 			Source:      c.PostForm("source"),
 			Schedule:    c.PostForm("schedule"),
 			Enabled:     c.PostForm("enabled") == "on",
@@ -285,7 +308,7 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 		if err == nil {
 			rs.RuleSetName = c.PostForm("rulesetname")
-			rs.CategoryId = str2uint(c.PostForm("categoryid"))
+			rs.CategoryId = c.PostForm("categoryid")
 			rs.Source = c.PostForm("source")
 			rs.Schedule = c.PostForm("schedule")
 			rs.Enabled = c.PostForm("enabled") == "on"
@@ -351,15 +374,25 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 	p.server.router.POST("/rules/eval", func(c *gin.Context) {
 		name := c.Request.FormValue("name")
 		now := time.Now()
-
-		duration := time.Since(now)
 		hits := p.rules.Test(name + ".")
+		duration := time.Since(now)
+
+		allcats := p.db.GetDNSCategories()
+		cats := make([]db.DNSCategory, 0)
+		for _, hit := range hits {
+			for _, cat := range allcats {
+				if cat.CategoryId == hit {
+					cats = append(cats, cat)
+				}
+			}
+		}
+
 		p.server.HTML(c, "rules_eval", gin.H{
 			"action": "eval",
 			"title":  "DNS rule evaluator",
 			"model": gin.H{
 				"name": name,
-				"hits": hits,
+				"hits": cats,
 				"stats": gin.H{
 					"duration": duration.String(),
 					"count":    len(hits),
@@ -369,10 +402,63 @@ func wcDnsConfigInit(p *Portal) *wcDnsConfig {
 
 	})
 
-	return dc
-}
+	p.server.router.GET("/config/api", func(c *gin.Context) {
 
-func str2uint(str string) uint {
-	i, _ := strconv.ParseUint(str, 10, 64)
-	return uint(i)
+		apis := []map[string]any{}
+		apis = append(apis, map[string]any{"api": "DomScan", "Enabled": p.config.settings.APIs.DomScan.Enabled})
+
+		p.server.HTML(c, "config_apis", gin.H{
+			"title": "API Configuration",
+			"model": gin.H{
+				"APIs": apis,
+			},
+		})
+	})
+
+	p.server.router.GET("/config/api/DomScan", func(c *gin.Context) {
+
+		p.server.HTML(c, "config_api_domscan", gin.H{
+			"title": "DomScan API Configuration",
+			"model": p.config.settings.APIs.DomScan,
+		})
+	})
+
+	p.server.router.POST("/config/api/DomScan", func(c *gin.Context) {
+
+		var err error
+		enabled := c.Request.FormValue("Enabled") == "on"
+		WebSiteCategorization := c.Request.FormValue("WebSiteCategorization") == "on"
+		key := c.Request.FormValue("Key")
+		save := true
+		if enabled {
+			if key == "" {
+				err = fmt.Errorf("Please enter an API key")
+				save = false
+			}
+		}
+
+		if save {
+			p.config.settings.APIs.DomScan.Enabled = enabled
+			p.config.settings.APIs.DomScan.Key = key
+			p.config.settings.APIs.DomScan.Services.WebSiteCategorization = WebSiteCategorization
+			err = p.db.SaveSettings(*p.config.settings)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, c.Request.RequestURI)
+			}
+		}
+
+		p.server.HTML(c, "config_api_domsc", gin.H{
+			"title": "API Configuration",
+			"model": gin.H{
+				"Enabled": enabled,
+				"Key":     key,
+				"Services": gin.H{
+					"WebSiteCategorization": WebSiteCategorization,
+				},
+			},
+			"error": err,
+		})
+	})
+
+	return dc
 }

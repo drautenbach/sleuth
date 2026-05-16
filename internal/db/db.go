@@ -889,52 +889,48 @@ func delete(d *Db, key string) error {
 
 /***************** DNS Config - Category **************************/
 
-func (d *Db) GetDNSCategory(categoryid uint) *DNSCategory {
-	return get[DNSCategory](d, fmt.Sprintf("dnscategory:%d", categoryid))
+func (d *Db) GetDNSCategory(categoryid string) *DNSCategory {
+	return get[DNSCategory](d, fmt.Sprintf("dnscategory:%s", categoryid))
 }
 
 func (d *Db) GetDNSCategories() []DNSCategory {
 	return getAll[DNSCategory](d, "dnscategory:")
 }
 
-func (d *Db) FindDNSCategory(CategoryName string) *DNSCategory {
-	cats := getAll[DNSCategory](d, "dnscategory:")
-	for i := range cats {
-		if cats[i].CategoryName == CategoryName {
-			return &cats[i]
+func (d *Db) CreateDNSCategory(c *DNSCategory) error {
+	if c.CategoryId == "" {
+		id, err := generateUID()
+		if err != nil {
+			return err
 		}
+		c.CategoryId = id
+	}
+	return create(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c, 0)
+}
+
+func (d *Db) EnsureDNSCategory(c *DNSCategory) error {
+	if c.CategoryId == "" {
+		return fmt.Errorf("Category Id required")
+	}
+	cat := d.GetDNSCategory(c.CategoryId)
+	if cat == nil {
+		return d.CreateDNSCategory(c)
 	}
 	return nil
 }
 
-func (d *Db) CreateDNSCategory(c *DNSCategory) error {
-	cats := d.GetDNSCategories()
-	var id uint
-	for i := range cats {
-		if cats[i].CategoryName == c.CategoryName {
-			return fmt.Errorf("DNS Category %s already exist", c.CategoryName)
-		}
-		if cats[i].CategoryId >= id {
-			id = cats[i].CategoryId
-		}
-	}
-
-	c.CategoryId = id + 1
-	return create(d, fmt.Sprintf("dnscategory:%d", c.CategoryId), c, 0)
-}
-
 func (d *Db) UpdateDNSCategory(c *DNSCategory) error {
-	return update(d, fmt.Sprintf("dnscategory:%d", c.CategoryId), c)
+	return update(d, fmt.Sprintf("dnscategory:%s", c.CategoryId), c)
 }
 
-func (d *Db) DeleteDNSCategory(categoryid uint) error {
+func (d *Db) DeleteDNSCategory(categoryid string) error {
 	rulesets := d.GetDNSRuleSets()
 	for _, rule := range rulesets {
 		if rule.CategoryId == categoryid {
 			return fmt.Errorf("Category in use by %s rule set", rule.RuleSetName)
 		}
 	}
-	return delete(d, fmt.Sprintf("dnscategory:%d", categoryid))
+	return delete(d, fmt.Sprintf("dnscategory:%s", categoryid))
 }
 
 /***************** DNS Config - RuleSet **************************/
@@ -1022,7 +1018,7 @@ func (d *Db) ClearDnsHostRules() error {
 	return err
 }
 
-func (d *Db) RemoveCategoryFromDnsHostRules(categoryId uint) error {
+func (d *Db) RemoveCategoryFromDnsHostRules(categoryId string) error {
 	prefix := []byte("dnsrule:")
 
 	err := d.dbInstance.Update(func(txn *badger.Txn) error {

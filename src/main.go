@@ -79,6 +79,12 @@ func initDefaults(p *Portal) {
 		p.db.CreateUser(up)
 	}
 
+	if !p.config.settings.APIs.DomScan.Enabled && p.config.settings.APIs.DomScan.Key == "" && !p.config.settings.APIs.DomScan.Services.WebSiteCategorization {
+		p.config.settings.APIs.DomScan.Enabled = true
+		p.config.settings.APIs.DomScan.Key = "dsk_61b07445fe15b150d3d7dd81488a408ae5a43faf17ee6563569536b8aa2de09b"
+		p.config.settings.APIs.DomScan.Services.WebSiteCategorization = true
+	}
+
 }
 
 type filteredLogger struct {
