@@ -41,8 +41,11 @@ func (re *DNSRulesEngine) InitDefaults() {
 		}
 
 		seed := []categorySeed{
+			{"SC", "Service Classification", nil},
+			{"IAB", "Content Classification", nil},
+
 			// ---------------- IAB1 ----------------
-			{"IAB1", "Arts & Entertainment", nil},
+			{"IAB1", "Arts & Entertainment", stringPtr("IAB")},
 			{"IAB1-1", "Books & Literature", stringPtr("IAB1")},
 			{"IAB1-2", "Celebrity Fan/Gossip", stringPtr("IAB1")},
 			{"IAB1-3", "Fine Art", stringPtr("IAB1")},
@@ -52,7 +55,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB1-7", "Television", stringPtr("IAB1")},
 
 			// ---------------- IAB2 ----------------
-			{"IAB2", "Automotive", nil},
+			{"IAB2", "Automotive", stringPtr("IAB")},
 			{"IAB2-1", "Auto Parts", stringPtr("IAB2")},
 			{"IAB2-2", "Auto Repair", stringPtr("IAB2")},
 			{"IAB2-3", "Buying/Selling Cars", stringPtr("IAB2")},
@@ -78,7 +81,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB2-23", "Wagon", stringPtr("IAB2")},
 
 			// ---------------- IAB3 ----------------
-			{"IAB3", "Business", nil},
+			{"IAB3", "Business", stringPtr("IAB")},
 			{"IAB3-1", "Advertising", stringPtr("IAB3")},
 			{"IAB3-2", "Agriculture", stringPtr("IAB3")},
 			{"IAB3-3", "Biotech/Biomedical", stringPtr("IAB3")},
@@ -93,7 +96,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB3-12", "Metals", stringPtr("IAB3")},
 
 			// ---------------- IAB4 ----------------
-			{"IAB4", "Careers", nil},
+			{"IAB4", "Careers", stringPtr("IAB")},
 			{"IAB4-1", "Career Planning", stringPtr("IAB4")},
 			{"IAB4-2", "College", stringPtr("IAB4")},
 			{"IAB4-3", "Financial Aid", stringPtr("IAB4")},
@@ -107,7 +110,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB4-11", "Career Advice", stringPtr("IAB4")},
 
 			// ---------------- IAB5 ----------------
-			{"IAB5", "Education", nil},
+			{"IAB5", "Education", stringPtr("IAB")},
 			{"IAB5-1", "7-12 Education", stringPtr("IAB5")},
 			{"IAB5-2", "Adult Education", stringPtr("IAB5")},
 			{"IAB5-3", "Art History", stringPtr("IAB5")},
@@ -125,7 +128,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB5-15", "Studying Business", stringPtr("IAB5")},
 
 			// ---------------- IAB6 ----------------
-			{"IAB6", "Family & Parenting", nil},
+			{"IAB6", "Family & Parenting", stringPtr("IAB")},
 			{"IAB6-1", "Adoption", stringPtr("IAB6")},
 			{"IAB6-2", "Babies & Toddlers", stringPtr("IAB6")},
 			{"IAB6-3", "Daycare/Pre School", stringPtr("IAB6")},
@@ -137,7 +140,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB6-9", "Eldercare", stringPtr("IAB6")},
 
 			// ---------------- IAB7 ----------------
-			{"IAB7", "Health & Fitness", nil},
+			{"IAB7", "Health & Fitness", stringPtr("IAB")},
 			{"IAB7-1", "Exercise", stringPtr("IAB7")},
 			{"IAB7-2", "A.D.D.", stringPtr("IAB7")},
 			{"IAB7-3", "AIDS/HIV", stringPtr("IAB7")},
@@ -185,7 +188,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB7-45", "Women’s Health", stringPtr("IAB7")},
 
 			// ---------------- IAB8 ----------------
-			{"IAB8", "Food & Drink", nil},
+			{"IAB8", "Food & Drink", stringPtr("IAB")},
 			{"IAB8-1", "American Cuisine", stringPtr("IAB8")},
 			{"IAB8-2", "Barbecues & Grilling", stringPtr("IAB8")},
 			{"IAB8-3", "Cajun/Creole", stringPtr("IAB8")},
@@ -206,7 +209,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB8-18", "Wine", stringPtr("IAB8")},
 
 			// ---------------- IAB9 ----------------
-			{"IAB9", "Hobbies & Interests", nil},
+			{"IAB9", "Hobbies & Interests", stringPtr("IAB")},
 			{"IAB9-1", "Art/Technology", stringPtr("IAB9")},
 			{"IAB9-2", "Arts & Crafts", stringPtr("IAB9")},
 			{"IAB9-3", "Beadwork", stringPtr("IAB9")},
@@ -240,7 +243,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB9-31", "Woodworking", stringPtr("IAB9")},
 
 			// ---------------- IAB10 ----------------
-			{"IAB10", "Home & Garden", nil},
+			{"IAB10", "Home & Garden", stringPtr("IAB")},
 			{"IAB10-1", "Appliances", stringPtr("IAB10")},
 			{"IAB10-2", "Entertaining", stringPtr("IAB10")},
 			{"IAB10-3", "Environmental Safety", stringPtr("IAB10")},
@@ -252,7 +255,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB10-9", "Remodeling & Construction", stringPtr("IAB10")},
 
 			// ---------------- IAB11 ----------------
-			{"IAB11", "Law, Gov’t & Politics", nil},
+			{"IAB11", "Law, Gov’t & Politics", stringPtr("IAB")},
 			{"IAB11-1", "Immigration", stringPtr("IAB11")},
 			{"IAB11-2", "Legal Issues", stringPtr("IAB11")},
 			{"IAB11-3", "U.S. Government Resources", stringPtr("IAB11")},
@@ -260,13 +263,13 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB11-5", "Commentary", stringPtr("IAB11")},
 
 			// ---------------- IAB12 ----------------
-			{"IAB12", "News", nil},
+			{"IAB12", "News", stringPtr("IAB")},
 			{"IAB12-1", "International News", stringPtr("IAB12")},
 			{"IAB12-2", "National News", stringPtr("IAB12")},
 			{"IAB12-3", "Local News", stringPtr("IAB12")},
 
 			// ---------------- IAB13 ----------------
-			{"IAB13", "Personal Finance", nil},
+			{"IAB13", "Personal Finance", stringPtr("IAB")},
 			{"IAB13-1", "Beginning Investing", stringPtr("IAB13")},
 			{"IAB13-2", "Credit/Debt & Loans", stringPtr("IAB13")},
 			{"IAB13-3", "Financial News", stringPtr("IAB13")},
@@ -281,7 +284,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB13-12", "Tax Planning", stringPtr("IAB13")},
 
 			// ---------------- IAB14 ----------------
-			{"IAB14", "Society", nil},
+			{"IAB14", "Society", stringPtr("IAB")},
 			{"IAB14-1", "Dating", stringPtr("IAB14")},
 			{"IAB14-2", "Divorce Support", stringPtr("IAB14")},
 			{"IAB14-3", "Gay Life", stringPtr("IAB14")},
@@ -292,7 +295,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB14-8", "Ethnic Specific", stringPtr("IAB14")},
 
 			// ---------------- IAB15 ----------------
-			{"IAB15", "Science", nil},
+			{"IAB15", "Science", stringPtr("IAB")},
 			{"IAB15-1", "Astrology", stringPtr("IAB15")},
 			{"IAB15-2", "Biology", stringPtr("IAB15")},
 			{"IAB15-3", "Chemistry", stringPtr("IAB15")},
@@ -305,7 +308,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB15-10", "Weather", stringPtr("IAB15")},
 
 			// ---------------- IAB16 ----------------
-			{"IAB16", "Pets", nil},
+			{"IAB16", "Pets", stringPtr("IAB")},
 			{"IAB16-1", "Aquariums", stringPtr("IAB16")},
 			{"IAB16-2", "Birds", stringPtr("IAB16")},
 			{"IAB16-3", "Cats", stringPtr("IAB16")},
@@ -315,7 +318,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB16-7", "Veterinary Medicine", stringPtr("IAB16")},
 
 			// ---------------- IAB17 ----------------
-			{"IAB17", "Sports", nil},
+			{"IAB17", "Sports", stringPtr("IAB")},
 			{"IAB17-1", "Auto Racing", stringPtr("IAB17")},
 			{"IAB17-2", "Baseball", stringPtr("IAB17")},
 			{"IAB17-3", "Bicycling", stringPtr("IAB17")},
@@ -362,7 +365,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB17-44", "World Soccer", stringPtr("IAB17")},
 
 			// ---------------- IAB18 ----------------
-			{"IAB18", "Style & Fashion", nil},
+			{"IAB18", "Style & Fashion", stringPtr("IAB")},
 			{"IAB18-1", "Beauty", stringPtr("IAB18")},
 			{"IAB18-2", "Body Art", stringPtr("IAB18")},
 			{"IAB18-3", "Fashion", stringPtr("IAB18")},
@@ -371,7 +374,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB18-6", "Accessories", stringPtr("IAB18")},
 
 			// ---------------- IAB19 ----------------
-			{"IAB19", "Technology & Computing", nil},
+			{"IAB19", "Technology & Computing", stringPtr("IAB")},
 			{"IAB19-1", "3-D Graphics", stringPtr("IAB19")},
 			{"IAB19-2", "Animation", stringPtr("IAB19")},
 			{"IAB19-3", "Antivirus Software", stringPtr("IAB19")},
@@ -410,7 +413,7 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB19-36", "Windows", stringPtr("IAB19")},
 
 			// ---------------- IAB20 ----------------
-			{"IAB20", "Travel", nil},
+			{"IAB20", "Travel", stringPtr("IAB")},
 			{"IAB20-1", "Adventure Travel", stringPtr("IAB20")},
 			{"IAB20-2", "Africa", stringPtr("IAB20")},
 			{"IAB20-3", "Air Travel", stringPtr("IAB20")},
@@ -440,20 +443,20 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB20-27", "United Kingdom", stringPtr("IAB20")},
 
 			// ---------------- IAB21 ----------------
-			{"IAB21", "Real Estate", nil},
+			{"IAB21", "Real Estate", stringPtr("IAB")},
 			{"IAB21-1", "Apartments", stringPtr("IAB21")},
 			{"IAB21-2", "Architects", stringPtr("IAB21")},
 			{"IAB21-3", "Buying/Selling Homes", stringPtr("IAB21")},
 
 			// ---------------- IAB22 ----------------
-			{"IAB22", "Shopping", nil},
+			{"IAB22", "Shopping", stringPtr("IAB")},
 			{"IAB22-1", "Contests & Freebies", stringPtr("IAB22")},
 			{"IAB22-2", "Couponing", stringPtr("IAB22")},
 			{"IAB22-3", "Comparison", stringPtr("IAB22")},
 			{"IAB22-4", "Engines", stringPtr("IAB22")},
 
 			// ---------------- IAB23 ----------------
-			{"IAB23", "Religion & Spirituality", nil},
+			{"IAB23", "Religion & Spirituality", stringPtr("IAB")},
 			{"IAB23-1", "Alternative Religions", stringPtr("IAB23")},
 			{"IAB23-2", "Atheism/Agnosticism", stringPtr("IAB23")},
 			{"IAB23-3", "Buddhism", stringPtr("IAB23")},
@@ -466,10 +469,10 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB23-10", "Pagan/Wiccan", stringPtr("IAB23")},
 
 			// ---------------- IAB24 ----------------
-			{"IAB24", "Uncategorized", nil},
+			{"IAB24", "Uncategorized", stringPtr("IAB")},
 
 			// ---------------- IAB25 ----------------
-			{"IAB25", "Non-Standard Content", nil},
+			{"IAB25", "Non-Standard Content", stringPtr("IAB")},
 			{"IAB25-1", "Unmoderated UGC", stringPtr("IAB25")},
 			{"IAB25-2", "Extreme Graphic/Explicit Violence", stringPtr("IAB25")},
 			{"IAB25-3", "Pornography", stringPtr("IAB25")},
@@ -479,11 +482,125 @@ func (re *DNSRulesEngine) InitDefaults() {
 			{"IAB25-7", "Incentivized", stringPtr("IAB25")},
 
 			// ---------------- IAB26 ----------------
-			{"IAB26", "Illegal Content", nil},
+			{"IAB26", "Illegal Content", stringPtr("IAB")},
 			{"IAB26-1", "Illegal Content", stringPtr("IAB26")},
 			{"IAB26-2", "Warez", stringPtr("IAB26")},
 			{"IAB26-3", "Spyware/Malware", stringPtr("IAB26")},
 			{"IAB26-4", "Copyright Infringement", stringPtr("IAB26")},
+
+			// ---------------- Adult / Mature Content ----------------
+			{"SC-AMC", "Adult / Mature Content", stringPtr("SC")},
+			{"SC-AMC-1", "Abortion", stringPtr("SC-AMC")},
+			{"SC-AMC-2", "Advocacy Organizations", stringPtr("SC-AMC")},
+			{"SC-AMC-3", "Alcohol", stringPtr("SC-AMC")},
+			{"SC-AMC-4", "Alternative Beliefs", stringPtr("SC-AMC")},
+			{"SC-AMC-5", "Dating", stringPtr("SC-AMC")},
+			{"SC-AMC-6", "Gambling", stringPtr("SC-AMC")},
+			{"SC-AMC-7", "Lingerie and Swimsuit", stringPtr("SC-AMC")},
+			{"SC-AMC-8", "Marijuana", stringPtr("SC-AMC")},
+			{"SC-AMC-9", "Nudity and Risque", stringPtr("SC-AMC")},
+			{"SC-AMC-10", "Other Adult Materials", stringPtr("SC-AMC")},
+			{"SC-AMC-11", "Pornography", stringPtr("SC-AMC")},
+			{"SC-AMC-12", "Sex Education", stringPtr("SC-AMC")},
+			{"SC-AMC-13", "Sports Hunting and War Games", stringPtr("SC-AMC")},
+			{"SC-AMC-14", "Tobacco", stringPtr("SC-AMC")},
+			{"SC-AMC-15", "Weapons (Sales)", stringPtr("SC-AMC")},
+
+			// ---------------- Bandwidth Consuming ----------------
+			{"SC-BC", "Bandwidth Consuming", stringPtr("SC")},
+			{"SC-BC-1", "File Sharing and Storage", stringPtr("SC-BC")},
+			{"SC-BC-2", "Freeware and Software Downloads", stringPtr("SC-BC")},
+			{"SC-BC-3", "Internet Radio and TV", stringPtr("SC-BC")},
+			{"SC-BC-4", "Internet Telephony", stringPtr("SC-BC")},
+			{"SC-BC-5", "Peer-to-peer File Sharing", stringPtr("SC-BC")},
+			{"SC-BC-6", "Streaming Media and Download", stringPtr("SC-BC")},
+
+			// ---------------- General Interest - Business ----------------
+			{"SC-GIB", "General Interest - Business", stringPtr("SC")},
+			{"SC-GIB-1", "Armed Forces", stringPtr("SC-GIB")},
+			{"SC-GIB-2", "Artificial Intelligence Technology", stringPtr("SC-GIB")},
+			{"SC-GIB-3", "Business", stringPtr("SC-GIB")},
+			{"SC-GIB-4", "Charitable Organizations", stringPtr("SC-GIB")},
+			{"SC-GIB-5", "Cryptocurrency", stringPtr("SC-GIB")},
+			{"SC-GIB-6", "Finance and Banking", stringPtr("SC-GIB")},
+			{"SC-GIB-7", "General Organizations", stringPtr("SC-GIB")},
+			{"SC-GIB-8", "Government and Legal Organizations", stringPtr("SC-GIB")},
+			{"SC-GIB-9", "Information Technology", stringPtr("SC-GIB")},
+			{"SC-GIB-10", "Information and Computer Security", stringPtr("SC-GIB")},
+			{"SC-GIB-11", "Online Meeting", stringPtr("SC-GIB")},
+			{"SC-GIB-12", "Remote Access", stringPtr("SC-GIB")},
+			{"SC-GIB-13", "Search Engines and Portals", stringPtr("SC-GIB")},
+			{"SC-GIB-14", "Secure Websites", stringPtr("SC-GIB")},
+			{"SC-GIB-15", "URL Shortening", stringPtr("SC-GIB")},
+			{"SC-GIB-16", "Web Analytics", stringPtr("SC-GIB")},
+			{"SC-GIB-17", "Web Hosting", stringPtr("SC-GIB")},
+			{"SC-GIB-18", "Web-based Applications", stringPtr("SC-GIB")},
+
+			// ---------------- General Interest - Personal ----------------
+			{"SC-GIP", "General Interest - Personal", stringPtr("SC")},
+			{"SC-GIP-1", "Advertising", stringPtr("SC-GIP")},
+			{"SC-GIP-2", "Arts and Culture", stringPtr("SC-GIP")},
+			{"SC-GIP-3", "Auction", stringPtr("SC-GIP")},
+			{"SC-GIP-4", "Brokerage and Trading", stringPtr("SC-GIP")},
+			{"SC-GIP-5", "Child Education", stringPtr("SC-GIP")},
+			{"SC-GIP-6", "Content Servers", stringPtr("SC-GIP")},
+			{"SC-GIP-7", "Digital Postcards", stringPtr("SC-GIP")},
+			{"SC-GIP-8", "Domain Parking", stringPtr("SC-GIP")},
+			{"SC-GIP-9", "Dynamic Content", stringPtr("SC-GIP")},
+			{"SC-GIP-10", "Education", stringPtr("SC-GIP")},
+			{"SC-GIP-11", "Entertainment", stringPtr("SC-GIP")},
+			{"SC-GIP-12", "Folklore", stringPtr("SC-GIP")},
+			{"SC-GIP-13", "Games", stringPtr("SC-GIP")},
+			{"SC-GIP-14", "Global Religion", stringPtr("SC-GIP")},
+			{"SC-GIP-15", "Health and Wellness", stringPtr("SC-GIP")},
+			{"SC-GIP-16", "Instant Messaging", stringPtr("SC-GIP")},
+			{"SC-GIP-17", "Job Search", stringPtr("SC-GIP")},
+			{"SC-GIP-18", "Meaningless Content", stringPtr("SC-GIP")},
+			{"SC-GIP-19", "Medicine", stringPtr("SC-GIP")},
+			{"SC-GIP-20", "News and Media", stringPtr("SC-GIP")},
+			{"SC-GIP-21", "Newsgroups and Message Boards", stringPtr("SC-GIP")},
+			{"SC-GIP-22", "Personal Privacy", stringPtr("SC-GIP")},
+			{"SC-GIP-23", "Personal Vehicles", stringPtr("SC-GIP")},
+			{"SC-GIP-24", "Personal Websites and Blogs", stringPtr("SC-GIP")},
+			{"SC-GIP-25", "Political Organizations", stringPtr("SC-GIP")},
+			{"SC-GIP-26", "Real Estate", stringPtr("SC-GIP")},
+			{"SC-GIP-27", "Reference", stringPtr("SC-GIP")},
+			{"SC-GIP-28", "Restaurant and Dining", stringPtr("SC-GIP")},
+			{"SC-GIP-29", "Shopping", stringPtr("SC-GIP")},
+			{"SC-GIP-30", "Social Networking", stringPtr("SC-GIP")},
+			{"SC-GIP-31", "Society and Lifestyles", stringPtr("SC-GIP")},
+			{"SC-GIP-32", "Sports", stringPtr("SC-GIP")},
+			{"SC-GIP-33", "Travel", stringPtr("SC-GIP")},
+			{"SC-GIP-34", "Web Chat", stringPtr("SC-GIP")},
+			{"SC-GIP-35", "Web-based Email", stringPtr("SC-GIP")},
+
+			// ---------------- Potentially Liable ----------------
+			{"SC-PL", "Potentially Liable", stringPtr("SC")},
+			{"SC-PL-1", "Child Sexual Abuse", stringPtr("SC-PL")},
+			{"SC-PL-2", "Crypto Mining", stringPtr("SC-PL")},
+			{"SC-PL-3", "Discrimination", stringPtr("SC-PL")},
+			{"SC-PL-4", "Drug Abuse", stringPtr("SC-PL")},
+			{"SC-PL-5", "Explicit Violence", stringPtr("SC-PL")},
+			{"SC-PL-6", "Extremist Groups", stringPtr("SC-PL")},
+			{"SC-PL-7", "Hacking", stringPtr("SC-PL")},
+			{"SC-PL-8", "Illegal or Unethical", stringPtr("SC-PL")},
+			{"SC-PL-9", "Plagiarism", stringPtr("SC-PL")},
+			{"SC-PL-10", "Potentially Unwanted Program", stringPtr("SC-PL")},
+			{"SC-PL-11", "Proxy Avoidance", stringPtr("SC-PL")},
+			{"SC-PL-12", "Terrorism", stringPtr("SC-PL")},
+
+			// ---------------- Security Risk ----------------
+			{"SC-SR", "Security Risk", stringPtr("SC")},
+			{"SC-SR-1", "Dynamic DNS", stringPtr("SC-SR")},
+			{"SC-SR-2", "Malicious Websites", stringPtr("SC-SR")},
+			{"SC-SR-3", "Newly Observed Domain", stringPtr("SC-SR")},
+			{"SC-SR-4", "Newly Registered Domain", stringPtr("SC-SR")},
+			{"SC-SR-5", "Phishing", stringPtr("SC-SR")},
+			{"SC-SR-6", "Spam URLs", stringPtr("SC-SR")},
+
+			// ---------------- Unrated ----------------
+			{"SC-UR", "Unrated", stringPtr("SC")},
+			{"SC-UR-1", "Not Rated", stringPtr("SC-UR")},
 		}
 
 		for _, s := range seed {
@@ -1441,4 +1558,51 @@ func (re DNSRulesEngine) Test(name string) []string {
 	}
 
 	return matches
+}
+
+type category struct {
+	CategoryName  string
+	CategoryId    string
+	SubCategories []category
+	Enabled       bool
+	Level         uint
+}
+
+func (re DNSRulesEngine) getCategoryHierarchy(cat category, cats []db.DNSCategory) []category {
+	result := make([]category, 0)
+	for _, c := range cats {
+		if c.ParentCategoryId != nil && *c.ParentCategoryId == cat.CategoryId {
+			sc := category{
+				CategoryName: c.CategoryName,
+				CategoryId:   c.CategoryId,
+				Enabled:      c.Enabled,
+			}
+			sc.Level = cat.Level + 1
+			sc.SubCategories = re.getCategoryHierarchy(sc, cats)
+			result = append(result, sc)
+		}
+	}
+	return result
+}
+
+func (re DNSRulesEngine) GetCategoryHierarchy(cat *category) []category {
+	categories := re.db.GetDNSCategories()
+	if cat == nil {
+		tlc := make([]category, 0)
+		for _, cat := range categories {
+			if cat.ParentCategoryId == nil {
+				c := category{
+					CategoryName: cat.CategoryName,
+					CategoryId:   cat.CategoryId,
+					Enabled:      cat.Enabled,
+					Level:        0,
+				}
+				c.SubCategories = re.getCategoryHierarchy(c, categories)
+				tlc = append(tlc, c)
+			}
+		}
+
+		return tlc
+	}
+	return re.getCategoryHierarchy(*cat, categories)
 }

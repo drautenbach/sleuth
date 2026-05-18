@@ -13,20 +13,7 @@
         </thead>
         <tbody>
             {{range .model.Categories}}
-            <tr>
-                <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
-                <td><b>{{.CategoryId}}</b></td>
-                <td><b>{{.CategoryName}}</b></td>
-                <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
-            </tr>
-                {{range .SubCategories}}
-                        <tr>
-                        <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
-                        <td>&nbsp;&nbsp;{{.CategoryId}}</td>
-                        <td>&nbsp;&nbsp;{{.CategoryName}}</td>
-                        <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
-                    </tr>
-                {{end}}
+            {{template "config_dnscategories_category.html" .}}
             {{end}}
         </tbody>
     </table>

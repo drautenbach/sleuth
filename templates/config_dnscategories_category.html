@@ -1,0 +1,12 @@
+            <tr>
+                <td><a href="category/{{.CategoryId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td style="padding-left: {{.Level}}0px;">
+                    {{.CategoryId}}
+                </td>
+                <td style="padding-left: {{.Level}}0px;">{{.CategoryName}}</td>
+                <td><wa-switch size="small" disabled {{if .Enabled}}checked{{end}}></wa-switch></td>
+            </tr>
+            {{range .SubCategories}}
+                {{template "config_dnscategories_category.html" .}}
+            {{end}}
+            

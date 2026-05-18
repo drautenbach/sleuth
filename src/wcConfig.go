@@ -15,47 +15,15 @@ import (
 type wcConfig struct {
 }
 
-type category struct {
-	CategoryName  string
-	CategoryId    string
-	SubCategories []category
-	Enabled       bool
-}
-
 func wcConfigInit(p *Portal) *wcConfig {
 	dc := &wcConfig{}
 
 	/**** Categories ****/
 
 	p.server.router.GET("/config/categories", func(c *gin.Context) {
-		categories := p.db.GetDNSCategories()
-
-		tlc := make(map[string]category, 0)
-		for _, cat := range categories {
-			if cat.ParentCategoryId == nil {
-				tlc[cat.CategoryId] = category{
-					CategoryName:  cat.CategoryName,
-					CategoryId:    cat.CategoryId,
-					SubCategories: make([]category, 0),
-					Enabled:       cat.Enabled,
-				}
-			}
-		}
-		for _, cat := range categories {
-			if cat.ParentCategoryId != nil {
-				parent := tlc[*cat.ParentCategoryId]
-				parent.SubCategories = append(parent.SubCategories, category{
-					CategoryName: cat.CategoryName,
-					CategoryId:   cat.CategoryId,
-					Enabled:      cat.Enabled,
-				})
-				tlc[*cat.ParentCategoryId] = parent
-			}
-		}
-
 		p.server.HTML(c, "config_dnscategories", gin.H{
 			"model": gin.H{
-				"Categories": tlc,
+				"Categories": p.rules.GetCategoryHierarchy(nil),
 			},
 		})
 	})
