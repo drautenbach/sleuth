@@ -169,6 +169,7 @@ func initDefaults(p *Portal) {
 
 	if p.config.settings.FallbackDNS == "" {
 		p.config.settings.FallbackDNS = "1.1.1.3"
+		p.db.SaveSettings(*p.config.settings)
 	}
 
 }
