@@ -6,6 +6,9 @@
         <thead>
             <tr>
                 <th>Role</th>
+                <th>DNS Configuration</th>
+                <th>DNS Device</th>
+                <th>Dynamic Routing</th>
                 <th>Admin</th>
             </tr>
         </thead>
@@ -13,11 +16,15 @@
             {{range .model.Roles}}
             <tr>
                 <td><a href="role/{{.RoleName}}"><wa-icon name="pencil-square"></wa-icon></a>&nbsp;{{.RoleName}}</td>
-                <td>{{if .Admin}}Yes{{else}}No{{end}}</td>                   
+                <td>{{.DNSConfiguration}}</td>
+                <td><wa-switch class="disabled" {{if .DNSPrependDeviceName}}checked{{end}}></wa-switch></td>   
+                <td><wa-switch class="disabled" {{if .DynamicRouting}}checked{{end}}></wa-switch></td>   
+                <td><wa-switch class="disabled" {{if .Admin}}checked{{end}}></wa-switch></td>   
             </tr>
             {{end}}
         </tbody>
     </table>
+
 
 
 {{template "template-end.html" .}}

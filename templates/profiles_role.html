@@ -8,8 +8,40 @@
                     <input type="text" name="rolename" value="{{.model.Role.RoleName}}" onkeyup="event.srcElement.value = event.srcElement.value.toLowerCase()" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
                 </div>
                 <div class="form-group">
+                    <wa-switch name="dynamicrouting"{{if .model.Role.DynamicRouting}} checked{{end}}>Dynamic routing</wa-switch>
+                </div>
+                <div class="form-group">
                     <wa-switch name="admin"{{if .model.Role.Admin}} checked{{end}}>Allow admin portal access</wa-switch>
                 </div>
+
+                <div class="form-group">
+                    <label for="rolename">DNS</label>
+                    <wa-select name="DNSConfiguration" value="{{.model.Role.DNSConfiguration}}" onchange="form.submit()">
+                            <wa-option value="">(Default)</wa-option>
+                        {{range .model.DNSConfigurations}}
+                            <wa-option value="{{.ProfileId}}">{{.Name}}</wa-option>
+                        {{end}}
+                    <wa-select>
+                </div>
+                <wa-checkbox name="DNSOverride" {{if .model.Role.DNSOverride}}checked{{end}} onchange="form.submit()">DNS Override</wa-checkbox>
+                <div class="form-group">
+                    <label>Type</label>
+                    <wa-select name="DNSMode" value="{{.model.Profile.Type}}" {{if eq .model.Role.DNSOverride false}}class="disabled"{{end}} onchange="form.submit()">
+                        {{range .model.Types}}
+                            <wa-option value="{{.Value}}" {{if eq .Value $.model.Role.DNSMode}}selected{{end}}>{{.Text}}</wa-option>
+                        {{end}}
+                    <wa-select>
+                </div>                
+                <div class="form-group">
+                    <label for="rolename">Address</label>
+                   <wa-input name="DNSAddress" value="{{.model.Role.DNSAddress}}" {{if eq .model.Role.DNSOverride false}}class="disabled"{{end}}></wa-input>
+                </div>  
+                
+                <div class="form-group">
+                    <label for="DNSPrependDeviceName"></label>
+                   <wa-switch name="DNSPrependDeviceName" {{if .model.Role.DNSPrependDeviceName}} checked{{end}}>Prepend device name to address (only applies to tcp/tcp-tls)</wa-switch>
+                </div>  
+
                 
                 <p><label class="error-message">{{.error}}</label></p>
                 <div class="button-group">

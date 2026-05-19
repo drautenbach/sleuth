@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"sleuth/internal/db"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -178,6 +181,29 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 
 	p.server.router.GET("/profiles/roles", func(c *gin.Context) {
 		roles := p.db.GetRoles()
+		dns := p.db.GetDNSConfigurations()
+		dmap := make(map[string]db.DNSConfiguration)
+		for _, d := range dns {
+			dmap[d.ProfileId] = d
+		}
+		for i := range roles {
+			if roles[i].DNSOverride && roles[i].DNSAddress != "" {
+				roles[i].DNSConfiguration = roles[i].DNSAddress
+				if roles[i].DNSMode == 0 {
+					roles[i].DNSPrependDeviceName = false
+				}
+			} else if dnsconfig, ok := dmap[roles[i].DNSConfiguration]; ok && dnsconfig.Address != "" {
+				roles[i].DNSConfiguration = dnsconfig.Address
+				if dnsconfig.Type == 0 {
+					roles[i].DNSPrependDeviceName = false
+				}
+			} else {
+				roles[i].DNSConfiguration = p.db.GetSettings().FallbackDNS
+				roles[i].DNSPrependDeviceName = false
+			}
+
+		}
+
 		p.server.HTML(c, "profiles_roles", gin.H{
 			"model": gin.H{
 				"Roles": roles,
@@ -185,73 +211,156 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		})
 	})
 
+	type TypeStruct struct {
+		Value int
+		Text  string
+	}
+
+	types := []TypeStruct{
+		{0, "UDP"},
+		{1, "TCP"},
+		{2, "TCP over TLS"},
+	}
+
 	p.server.router.GET("/profiles/roles/new", func(c *gin.Context) {
 		p.server.HTML(c, "profiles_role", gin.H{
 			"action": "create",
 			"title":  "New Role",
 			"model": gin.H{
-				"Role": make(map[string]interface{}),
+				"Role":              &db.Role{},
+				"DNSConfigurations": p.db.GetDNSConfigurations(),
+				"Types":             types,
 			},
 		})
 	})
 
 	p.server.router.POST("/profiles/roles/new", func(c *gin.Context) {
-		var r = &db.Role{
-			RoleName: c.PostForm("rolename"),
-			Admin:    c.PostForm("admin") == "on",
+		var err error
+		var role = &db.Role{
+			RoleName:             c.PostForm("rolename"),
+			Admin:                c.PostForm("admin") == "on",
+			DynamicRouting:       c.PostForm("dynamicrouting") == "on",
+			DNSOverride:          c.PostForm("DNSOverride") == "on",
+			DNSPrependDeviceName: c.PostForm("DNSPrependDeviceName") == "on",
+			DNSConfiguration:     c.PostForm("DNSConfiguration"),
+			DNSAddress:           strings.Trim(c.PostForm("DNSAddress"), " "),
 		}
-		var err = p.db.CreateRole(r)
+		t, err := strconv.Atoi(c.PostForm("DNSMode"))
 		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/profiles/roles")
-			c.Abort()
-		} else {
-			p.server.HTML(c, "profiles_role", gin.H{
-				"action": "create",
-				"title":  "New Role",
-				"error":  err.Error(),
-				"model": gin.H{
-					"Role": r,
-				},
-			})
+			modeVal := reflect.ValueOf(t)
+
+			rv := reflect.ValueOf(&role.DNSMode).Elem()
+
+			if modeVal.Type().ConvertibleTo(rv.Type()) {
+				rv.Set(modeVal.Convert(rv.Type()))
+			} else if rv.Kind() >= reflect.Int && rv.Kind() <= reflect.Int64 {
+				rv.SetInt(int64(t))
+			}
 		}
+		if !role.DNSOverride {
+			dnsconfiguration := p.db.GetDNSConfiguration(role.DNSConfiguration)
+			if dnsconfiguration != nil {
+				role.DNSMode = dnsconfiguration.Type
+				role.DNSAddress = dnsconfiguration.Address
+			}
+		}
+
+		if c.PostForm("action") == "Create" {
+			err = p.db.CreateRole(role)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, "/profiles/roles")
+				c.Abort()
+				return
+			}
+		}
+
+		p.server.HTML(c, "profiles_role", gin.H{
+			"action": "create",
+			"title":  "New Role",
+			"error":  err,
+			"model": gin.H{
+				"Role":              role,
+				"DNSConfigurations": p.db.GetDNSConfigurations(),
+				"Types":             types,
+			},
+		})
 	})
 
 	p.server.router.GET("/profiles/role/:rolename", func(c *gin.Context) {
 		// get rolename from the route parameter
 		rolename := c.Param("rolename")
 		role := p.db.GetRole(rolename)
+		if role != nil && !role.DNSOverride {
+			dnsconfiguration := p.db.GetDNSConfiguration(role.DNSConfiguration)
+			if dnsconfiguration != nil {
+				role.DNSMode = dnsconfiguration.Type
+				role.DNSAddress = dnsconfiguration.Address
+			}
+		}
+
 		p.server.HTML(c, "profiles_role", gin.H{
 			"action": "edit",
 			"title":  "Edit Role",
 			"model": gin.H{
-				"Role": role,
+				"Role":              role,
+				"DNSConfigurations": p.db.GetDNSConfigurations(),
+				"Types":             types,
 			},
 		})
 	})
 
 	p.server.router.POST("/profiles/role/:rolename", func(c *gin.Context) {
-		var r = p.db.GetRole(c.Param("rolename"))
-		var err error
-		if r == nil {
-			err = fmt.Errorf("role %s does not exist", c.Param("rolename"))
-		} else {
-			r.Admin = c.PostForm("admin") == "on"
-			p.db.UpdateRole(r)
+		var role = p.db.GetRole(c.Param("rolename"))
+
+		role.Admin = c.PostForm("admin") == "on"
+		role.DynamicRouting = c.PostForm("dynamicrouting") == "on"
+		role.DNSOverride = c.PostForm("DNSOverride") == "on"
+		role.DNSPrependDeviceName = c.PostForm("DNSPrependDeviceName") == "on"
+		role.DNSConfiguration = c.PostForm("DNSConfiguration")
+		role.DNSAddress = strings.Trim(c.PostForm("DNSAddress"), " ")
+
+		t, err := strconv.Atoi(c.PostForm("DNSMode"))
+		if err == nil {
+			modeVal := reflect.ValueOf(t)
+
+			rv := reflect.ValueOf(&role.DNSMode).Elem()
+
+			if modeVal.Type().ConvertibleTo(rv.Type()) {
+				rv.Set(modeVal.Convert(rv.Type()))
+			} else if rv.Kind() >= reflect.Int && rv.Kind() <= reflect.Int64 {
+				rv.SetInt(int64(t))
+			}
 		}
 
-		if err == nil {
-			c.Redirect(http.StatusSeeOther, "/profiles/roles")
-			c.Abort()
-		} else {
-			p.server.HTML(c, "profiles_role", gin.H{
-				"action": "edit",
-				"title":  "Edit Role",
-				"error":  err.Error(),
-				"model": gin.H{
-					"Role": r,
-				},
-			})
+		if !role.DNSOverride {
+			dnsconfiguration := p.db.GetDNSConfiguration(role.DNSConfiguration)
+			if dnsconfiguration != nil {
+				role.DNSMode = dnsconfiguration.Type
+				role.DNSAddress = dnsconfiguration.Address
+			}
 		}
+
+		if role == nil {
+			err = fmt.Errorf("role %s does not exist", c.Param("rolename"))
+		} else if c.PostForm("action") == "edit" {
+			err = p.db.UpdateRole(role)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, "/profiles/roles")
+				c.Abort()
+				return
+			}
+		}
+
+		p.server.HTML(c, "profiles_role", gin.H{
+			"action": "edit",
+			"title":  "Edit Role",
+			"error":  err,
+			"model": gin.H{
+				"Role":              role,
+				"DNSConfigurations": p.db.GetDNSConfigurations(),
+				"Types":             types,
+			},
+		})
 	})
 
 	p.server.router.GET("/profiles/roles/delete/:rolename", func(c *gin.Context) {

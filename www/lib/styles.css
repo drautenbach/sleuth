@@ -1559,3 +1559,6 @@ body[data-page^='/tokens/'] .table-wrapper td:first-child code {
   margin-left: 25px;
 }
 
+.disabled {
+    pointer-events: none;
+}

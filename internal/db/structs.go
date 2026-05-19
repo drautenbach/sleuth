@@ -30,14 +30,21 @@ type DeviceProfile struct {
 }
 
 type Role struct {
-	RoleName   string
-	SystemRole bool
-	Admin      bool
+	RoleName             string
+	SystemRole           bool
+	Admin                bool
+	DynamicRouting       bool
+	DNSOverride          bool
+	DNSConfiguration     string
+	DNSMode              enumDNSMode
+	DNSAddress           string
+	DNSPrependDeviceName bool
 }
 
 type Settings struct {
 	Mode           enumPortalMode
 	DefaultRole    string
+	FallbackDNS    string
 	SelfRegEnabled bool
 	Firewall       string
 	SSL            []string
@@ -54,6 +61,13 @@ type API_DomScan struct {
 	}
 }
 
+type DNSConfiguration struct {
+	ProfileId string
+	Name      string
+	Type      enumDNSMode
+	Address   string
+}
+
 type enumPortalMode int
 
 const (
@@ -62,8 +76,17 @@ const (
 	ModeBlock                  = 2
 )
 
+type enumDNSMode uint
+
+const (
+	ModeUDP enumDNSMode = iota
+	ModeTCP             = 1
+	ModeTLS             = 2
+)
+
 type Session struct {
-	IP       string
-	Username string
-	Expiry   time.Time
+	IP         string
+	Username   string
+	MacAddress string
+	Expiry     time.Time
 }

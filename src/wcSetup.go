@@ -57,6 +57,7 @@ func wcSetupInit(p *Portal) *wcSetup {
 			p.config.settings.SelfRegEnabled = c.PostForm("self_reg_enabled") == "on"
 			setfw := c.PostForm("firewall") != p.config.settings.Firewall
 			p.config.settings.Firewall = c.PostForm("firewall")
+			p.config.settings.FallbackDNS = c.PostForm("FallbackDNS")
 
 			// convert int to the enum type stored in p.config.settings.Mode using reflection
 			rv := reflect.ValueOf(&p.config.settings.Mode).Elem()

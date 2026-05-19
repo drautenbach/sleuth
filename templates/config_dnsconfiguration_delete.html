@@ -1,0 +1,17 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                <p>Are you sure you want to delete DNS profile <strong>{{.model.Profile.Name}}</strong>?</p>
+                
+                <p><label class="error-message">{{.error}}</label></p>
+                <div class="button-group">
+                    <wa-button variant="danger" type="submit" name="action" value="delete"><wa-icon name="xmark"></wa-icon> Delete</wa-button>
+                    <wa-button variant="default" href="../../dnsconfigurations/{{.model.Profile.Name}}" outline><wa-icon name="arrow-left"></wa-icon> Cancel</wa-button>
+                </div>
+        </div>
+    </form>
+
+
+{{template "template-end.html" .}}

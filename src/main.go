@@ -45,25 +45,113 @@ func main() {
 }
 
 func initDefaults(p *Portal) {
+	if len(p.db.GetDNSConfigurations()) == 0 {
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "NextDNS Default Profile (TLS)",
+			Type:    db.ModeTLS,
+			Address: "dns.nextdns.io",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "NextDNS (UDP)",
+			Type:    db.ModeUDP,
+			Address: "45.90.28.153",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "CleanBrowsing",
+			Type:    db.ModeUDP,
+			Address: "185.228.168.9",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "Cisco OpenDNS FamilyShield",
+			Type:    db.ModeUDP,
+			Address: "208.67.222.123",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "DNS4EU (unfiltered)",
+			Type:    db.ModeUDP,
+			Address: "86.54.11.100",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "DNS4EU (protective)",
+			Type:    db.ModeUDP,
+			Address: "86.54.11.1",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "DNS4EU (Protective + Child Protection)",
+			Type:    db.ModeUDP,
+			Address: "86.54.11.12",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "DNS4EU (Protective + Ad Blocking)",
+			Type:    db.ModeUDP,
+			Address: "86.54.11.13",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "DNS4EU (Protective + Child Protection + Ad Blocking)",
+			Type:    db.ModeUDP,
+			Address: "86.54.11.11",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "Quad9 (Malware/Phishing)",
+			Type:    db.ModeUDP,
+			Address: "9.9.9.9",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "Cloudflare (unfiltered)",
+			Type:    db.ModeUDP,
+			Address: "1.1.1.1",
+		})
+
+		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
+			Name:    "Cloudflare (family)",
+			Type:    db.ModeUDP,
+			Address: "1.1.1.3",
+		})
+	}
+
 	if len(p.db.GetRoles()) == 0 {
+		dnsconfigurations := p.db.GetDNSConfigurations()
+		profile := dnsconfigurations[0]
+		for i := range dnsconfigurations {
+			if dnsconfigurations[i].Name == "NextDNS Default Profile (TLS)" {
+				profile = dnsconfigurations[i]
+			}
+		}
+
 		r := &db.Role{
-			RoleName:   "admin",
-			SystemRole: true,
-			Admin:      true,
+			RoleName:         "admin",
+			SystemRole:       true,
+			Admin:            true,
+			DynamicRouting:   false,
+			DNSConfiguration: profile.ProfileId,
 		}
 		p.db.CreateRole(r)
 
 		r = &db.Role{
-			RoleName:   "user",
-			SystemRole: true,
-			Admin:      false,
+			RoleName:         "user",
+			SystemRole:       true,
+			Admin:            false,
+			DynamicRouting:   true,
+			DNSConfiguration: profile.ProfileId,
 		}
 		p.db.CreateRole(r)
 
 		r = &db.Role{
-			RoleName:   "guest",
-			SystemRole: true,
-			Admin:      false,
+			RoleName:         "guest",
+			SystemRole:       true,
+			Admin:            false,
+			DynamicRouting:   true,
+			DNSConfiguration: profile.ProfileId,
 		}
 		p.db.CreateRole(r)
 	}
@@ -79,10 +167,8 @@ func initDefaults(p *Portal) {
 		p.db.CreateUser(up)
 	}
 
-	if !p.config.settings.APIs.DomScan.Enabled && p.config.settings.APIs.DomScan.Key == "" && !p.config.settings.APIs.DomScan.Services.WebSiteCategorization {
-		p.config.settings.APIs.DomScan.Enabled = true
-		p.config.settings.APIs.DomScan.Key = "dsk_61b07445fe15b150d3d7dd81488a408ae5a43faf17ee6563569536b8aa2de09b"
-		p.config.settings.APIs.DomScan.Services.WebSiteCategorization = true
+	if p.config.settings.FallbackDNS == "" {
+		p.config.settings.FallbackDNS = "1.1.1.3"
 	}
 
 }

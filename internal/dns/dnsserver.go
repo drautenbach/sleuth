@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,16 +11,17 @@ import (
 	"sleuth/internal/firewall"
 	"sleuth/internal/security"
 	"strings"
-	"syscall"
-	"unsafe"
+	"time"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/ipv4"
 )
 
 type DnsServer struct {
 	db       *db.Db
 	fw       firewall.FirewallManager
 	security security.Security
+	settings db.Settings
 }
 
 func (s *DnsServer) parseQuery(source net.Addr, interfaceAddress string, m *dns.Msg) {
@@ -42,7 +44,7 @@ func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) ([]dn
 	return *records, nil
 }
 
-func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, source string, if_ip string) []dns.RR {
+func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, ses security.SessionInfo, if_ip string) []dns.RR {
 	resp := make(map[uint16]dns.RR)
 	ttl := uint32(32767)
 	for i := range arr {
@@ -56,17 +58,14 @@ func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, 
 				{
 					ttl := header.Ttl
 					qtype := arr[i].Header().Rrtype
-					_, reason := s.security.VerifyDomainAccess(source, header.Name)
-					if s.fw.IsActive() {
-						allocatedIP, err := s.fw.AllocateIPv4(source, header.Name, qtype, arr[i].(*dns.A).A.String(), ttl, reason, if_ip)
-						if err != nil {
-							fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
-						}
-						newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", header.Name, 60 /*ttl*/, getQueryTypeText(header.Rrtype), allocatedIP))
-						resp[header.Rrtype] = newRR
-					} else {
-						resp[header.Rrtype] = arr[i]
+					//_, reason := s.security.VerifyDomainAccess(source, header.Name)
+					allocatedIP, err := s.fw.AllocateIPv4(ses.ClientIP, header.Name, qtype, arr[i].(*dns.A).A.String(), ttl, ses.RejectReason, if_ip)
+					if err != nil {
+						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
 					}
+					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", header.Name, 1 /*ttl*/, getQueryTypeText(header.Rrtype), allocatedIP))
+					resp[header.Rrtype] = newRR
+
 				}
 			case dns.TypeAAAA:
 				fmt.Println(fmt.Errorf("AAAA not yet supported for: %s", header.Name))
@@ -80,7 +79,7 @@ func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, 
 	for _, v := range resp {
 		values = append(values, v)
 	}
-	s.db.CreateDNSCacheRecord(source, name, qtype, ttl, &values)
+	s.db.CreateDNSCacheRecord(ses.ClientIP, name, qtype, ttl, &values)
 	return values
 }
 
@@ -97,23 +96,86 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 		logQueryResult(source, name, qtype, "resolved from cache")
 		return arr, dns.RcodeSuccess
 	}
+
+	ses, _ := s.security.GetSessionInfo(source)
+	if qtype == 1 && name == "my.session." { // special case to allow logout
+		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60, "A", if_ip))
+		arr = append(arr, rr)
+		return s.processDnsResponse(name, qtype, arr, ses, if_ip), dns.RcodeSuccess
+	}
+
 	arr, err = queryBlacklist(name, qtype)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved as blacklisted name")
 		return arr, dns.RcodeNameError
 	}
 
-	if name == "my.session." && qtype == 1 { // special case to allow logout
-		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60 /*ttl*/, "A", if_ip))
-		arr = append(arr, rr)
-		return s.processDnsResponse(name, qtype, arr, source, if_ip), dns.RcodeSuccess
+	m1 := new(dns.Msg)
+	m1.Id = dns.Id()
+	m1.RecursionDesired = true
+	m1.Question = make([]dns.Question, 1)
+	m1.Question[0] = dns.Question{
+		Name:   name,
+		Qtype:  qtype,
+		Qclass: dns.ClassINET,
 	}
 
-	arr, err = queryUpstream(name, qtype)
+	c := new(dns.Client)
+	fallbackAddress := s.settings.FallbackDNS
+	if len(strings.Split(fallbackAddress, ":")) < 2 {
+		fallbackAddress = fmt.Sprintf("%s:53", fallbackAddress)
+	}
+	address := fallbackAddress
+	if ses.DNS != nil && ses.DNS.Address != "" {
+		address = ses.DNS.Address
+		switch ses.DNS.Type {
+		case 0:
+			if len(strings.Split(address, ":")) < 2 {
+				address = fmt.Sprintf("%s:53", address)
+			}
+		case 1:
+			c.Net = "tcp"
+			if len(strings.Split(address, ":")) < 2 {
+				address = fmt.Sprintf("%s:53", address)
+			}
+			c = &dns.Client{
+				Net: "tcp",
+				Dialer: &net.Dialer{
+					Resolver: &net.Resolver{
+						PreferGo: true,
+						Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+							d := net.Dialer{}
+							return d.DialContext(ctx, network, fallbackAddress)
+						},
+					},
+				},
+			}
+		case 2:
+			if len(strings.Split(address, ":")) < 2 {
+				address = fmt.Sprintf("%s:853", address)
+			}
+			c = &dns.Client{
+				Net: "tcp-tls",
+				Dialer: &net.Dialer{
+					Resolver: &net.Resolver{
+						PreferGo: true,
+						Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+							d := net.Dialer{}
+							return d.DialContext(ctx, network, fallbackAddress)
+						},
+					},
+				},
+			}
+		}
+	}
+
+	in, _, err := c.Exchange(m1, address)
+
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved via upstream")
-		return s.processDnsResponse(name, qtype, arr, source, if_ip), dns.RcodeSuccess
+		return s.processDnsResponse(name, qtype, in.Answer, ses, if_ip), dns.RcodeSuccess
 	}
+
 	logQueryResult(source, name, qtype, "did not resolve")
 	return []dns.RR{}, dns.RcodeNameError
 }
@@ -137,11 +199,12 @@ func (s *DnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.Close()
 }
 
-func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Security) *DnsServer {
+func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Security, settings *db.Settings) *DnsServer {
 	s := &DnsServer{
 		fw:       fw,
 		db:       db,
 		security: *security,
+		settings: *settings,
 	}
 	GetConfig().ReadConfig()
 	GetConfig().Print()
@@ -157,7 +220,17 @@ func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Se
 
 func (s DnsServer) Start() {
 	log.Printf("Starting at %s\n", GetConfig().ListenAddr)
-	pc, err := newPktinfoConn(":53") // net.ListenPacket("udp", ":53")
+	addr := &net.UDPAddr{
+		IP:   net.IPv4zero,
+		Port: 53,
+	}
+
+	udpConn, err := net.ListenUDP("udp4", addr)
+	if err != nil {
+		panic(err)
+	}
+
+	pc, err := newPktinfoConn(udpConn) // net.ListenPacket("udp", ":53")
 
 	if err != nil {
 		log.Fatalf("Failed to start server: %s\n ", err.Error())
@@ -175,7 +248,11 @@ func (s DnsServer) Start() {
 func (s *DnsServer) ReevaluateDomainAccess(fwr *constants.FwdRule) error {
 	_, newReason := s.security.VerifyDomainAccess(fwr.ClientIP, fwr.Hostname)
 	if newReason != fwr.ReasonCode {
-		return s.fw.UpdateIPv4(fwr, newReason)
+		if s.fw.IsActive() {
+			return s.fw.UpdateIPv4(fwr, newReason)
+		}
+		fwr.ReasonCode = newReason
+		return s.db.ExtendFwdRule(fwr, time.Now().Add(time.Duration(330)*time.Second))
 	}
 	return nil
 }
@@ -186,10 +263,26 @@ func (s *DnsServer) FlushCache(clientIP string) error {
 
 type pktinfoConn struct {
 	*net.UDPConn
+	pconn *ipv4.PacketConn
 }
 
-func newPktinfoConn(addr string) (*pktinfoConn, error) {
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+func newPktinfoConn(conn *net.UDPConn) (*pktinfoConn, error) {
+	p := ipv4.NewPacketConn(conn)
+
+	// Enable control messages for destination IP + interface
+	if err := p.SetControlMessage(
+		ipv4.FlagDst|ipv4.FlagInterface,
+		true,
+	); err != nil {
+		return nil, err
+	}
+
+	return &pktinfoConn{
+		UDPConn: conn,
+		pconn:   p,
+	}, nil
+
+	/*udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -212,36 +305,23 @@ func newPktinfoConn(addr string) (*pktinfoConn, error) {
 		return nil, err
 	}
 
-	return &pktinfoConn{conn}, nil
-}
-
-// Helper type to pass local IP
-type packetAddr struct {
-	net.Addr
-	dstIP net.IP
+	return &pktinfoConn{conn}, nil*/
 }
 
 var lastDstIP map[string]string = make(map[string]string)
 
 func (p *pktinfoConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	oob := make([]byte, 1024)
-	n, oobn, _, raddr, err := p.UDPConn.ReadMsgUDP(b, oob)
+	n, cm, raddr, err := p.pconn.ReadFrom(b)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	var dstIP net.IP
-	cmsgs, _ := syscall.ParseSocketControlMessage(oob[:oobn])
-	for _, cmsg := range cmsgs {
-		if cmsg.Header.Level == syscall.IPPROTO_IP && cmsg.Header.Type == syscall.IP_PKTINFO {
-			pktinfo := (*syscall.Inet4Pktinfo)(unsafe.Pointer(&cmsg.Data[0]))
-			dstIP = net.IPv4(pktinfo.Addr[0], pktinfo.Addr[1], pktinfo.Addr[2], pktinfo.Addr[3])
+	if cm != nil && cm.Dst != nil {
+		host, _, err := net.SplitHostPort(raddr.String())
+		if err == nil {
+			lastDstIP[host] = cm.Dst.String()
 		}
 	}
-
-	// Return the actual client address
-	// Save dstIP somewhere for use in the handler
-	lastDstIP[strings.Split(raddr.String(), ":")[0]] = strings.Split(dstIP.String(), ":")[0] // simple map keyed by client addr
 
 	return n, raddr, nil
 }

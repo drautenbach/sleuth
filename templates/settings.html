@@ -3,7 +3,7 @@
     <form id="settings_form" method="POST">
         <div class="form-layout">
             <h3>{{.title}}</h3>
-                    <h5>Guest internet (gateway) access</h5>
+                    <h4>Guest internet (gateway) access</h4>
 
                 <div >
                     <label for="default_access_profile">Authentication behaviour
@@ -60,8 +60,8 @@
                     {{end}}
                 </div>
 
-                <h5>Firewall</h5>
-                    <div>
+                <h4>Firewall</h4>
+                <div>
                     <label for="firewall">Default NAT firewall
                         <wa-tooltip content="Override firewall used to apply network access policies.">
                             <wa-icon name="info-circle"></wa-icon>
@@ -75,6 +75,18 @@
                         {{end}}
                     </wa-dropdown>
                 </div>
+
+                <h4>DNS</h4>
+                <div>
+                    <label for="FallbackDNS">Fallback UDP DNS
+                        <wa-tooltip content="Default DNS server to use as fallback">
+                            <wa-icon name="info-circle"></wa-icon>
+                        </wa-tooltip>
+                    </label>
+                    <wa-input name="FallbackDNS" value="{{.model.FallbackDNS}}" onchange="form.submit()"></wa-input>
+                </div>
+
+
         </div>
     </form>
 

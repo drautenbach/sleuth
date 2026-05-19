@@ -53,7 +53,7 @@ func InitPortal() *Portal {
 		fw:      firewall.LoadFirewallManager(),
 		wc:      WebControllers{},
 	}
-	p.security = security.InitSession(p.db, p.network)
+	p.security = security.InitSession(p.db, p.network, p.config.settings)
 	p.fw.Init(p.db)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
@@ -61,7 +61,7 @@ func InitPortal() *Portal {
 	p.rules = *rules.Init(p.db, p.config.settings)
 	p.rules.InitDefaults()
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
-	p.dns = *dns.InitDnsServer(p.fw, p.db, p.security)
+	p.dns = *dns.InitDnsServer(p.fw, p.db, p.security, p.config.settings)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
 
 	p.wc.System = *wcSystemInit(p)
@@ -101,13 +101,6 @@ func (p *Portal) redirectHandler(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (p *Portal) redirectHTTPS(w http.ResponseWriter, r *http.Request) {
-	if slices.Index(p.config.settings.SSL, r.Host) == -1 {
-		target := "http://" + r.Host + r.URL.RequestURI()
-		http.Redirect(w, r, target, http.StatusMovedPermanently)
-	}
 }
 
 func (p *Portal) logout(c *gin.Context) {
@@ -331,8 +324,9 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 							err = fmt.Errorf("access denied")
 						}
 					} else {
-						p.security.CreateSession(clientIP(c.Request), u.UserName)
-						allrules := p.db.GetFwdRulesByClient(clientIP(c.Request))
+						ip := clientIP(c.Request)
+						p.security.CreateSession(ip, u.UserName, p.security.ResolveMacAddress(ip))
+						allrules := p.db.GetFwdRulesByClient(ip)
 						for i := range allrules {
 							if allrules[i].ReasonCode != 0 {
 								p.dns.ReevaluateDomainAccess(&allrules[i])

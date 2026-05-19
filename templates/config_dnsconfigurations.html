@@ -1,0 +1,34 @@
+{{template "template-start.html" .}}
+
+    <form method="POST">
+        <span class="right">
+        <nobr>
+            <wa-button size="xs" href="dnsconfigurations/new"><wa-icon name="plus"></wa-icon></wa-button>
+        </nobr>
+        </span>
+    </form>
+    
+    <h2>DNS Configurations</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Name</th>    
+                <th>Address</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Profiles}}
+            <tr>
+                <td><a href="DNSConfiguration/{{.ProfileId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td>{{.Name}}</td>
+                <th>{{.Address}}</th>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+    <p><label class="error-message">{{.model.error}}</label></p>
+
+
+{{template "template-end.html" .}}

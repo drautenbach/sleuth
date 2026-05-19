@@ -502,7 +502,7 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 
 		fwd, err := txn.Get([]byte(fwdKey))
 		if fwd != nil {
-			return fmt.Errorf("forward rule %s:%d already exists", r.DestIP, r.QType)
+			return fmt.Errorf("forward rule %s:%s:%d already exists", r.ClientIP, r.DestIP, r.QType)
 		}
 
 		r.CacheExpiry = expires
@@ -524,11 +524,11 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 }
 
 func (d *Db) fwdKey(clientIP string, destIPOffset uint16, qtype uint16) string {
-	return fmt.Sprintf("fwd:%s:%06d:%d", clientIP, destIPOffset, qtype)
+	return fmt.Sprintf("fwd:%s:%d:%06d", clientIP, qtype, destIPOffset)
 }
 
 func (d *Db) dnsKey(clientIP string, hostname string, qtype uint16) string {
-	return fmt.Sprintf("dns:%s:%s:%d", clientIP, hostname, qtype)
+	return fmt.Sprintf("dns:%s:%d:%s", clientIP, qtype, hostname)
 }
 
 func (d *Db) DeleteFwdRule(r *constants.FwdRule) error {
@@ -607,6 +607,10 @@ func (d *Db) GetFwdRuleByHostname(clientIP string, hostname string, qtype uint16
 
 func (d *Db) GetFwdRulesByClient(clientIP string) []constants.FwdRule {
 	return d.getFwdRulesByKey(fmt.Sprintf("fwd:%s:", clientIP))
+}
+
+func (d *Db) GetFwdRulesByClientType(clientIP string, qtype uint16) []constants.FwdRule {
+	return d.getFwdRulesByKey(fmt.Sprintf("fwd:%s:%d:", clientIP, qtype))
 }
 
 func (d *Db) GetFwdRules() []constants.FwdRule {
@@ -1071,10 +1075,6 @@ func (d *Db) RemoveCategoryFromDnsHostRules(categoryId string) error {
 	return err
 }
 
-func (d *Db) GetDnsHostRules(string) {
-
-}
-
 /***************** DNS Cache **************************/
 
 func (d *Db) CreateDNSCacheRecord(clientIP string, name string, qtype uint16, ttl uint32, rr *[]dns.RR) error {
@@ -1107,4 +1107,39 @@ func (d *Db) FlushDNSCacheRecords(clientIP string) error {
 		return err
 	})
 	return err
+}
+
+/***************** DNS Config - Profile **************************/
+
+func (d *Db) GetDNSConfiguration(profileid string) *DNSConfiguration {
+	return get[DNSConfiguration](d, fmt.Sprintf("DNSConfiguration:%s", profileid))
+}
+
+func (d *Db) GetDNSConfigurations() []DNSConfiguration {
+	return getAll[DNSConfiguration](d, "DNSConfiguration:")
+}
+
+func (d *Db) CreateDNSConfiguration(p *DNSConfiguration) error {
+	if p.ProfileId == "" {
+		id, err := generateUID()
+		if err != nil {
+			return err
+		}
+		p.ProfileId = id[:6]
+	}
+	return create(d, fmt.Sprintf("DNSConfiguration:%s", p.ProfileId), p, 0)
+}
+
+func (d *Db) UpdateDNSConfiguration(p *DNSConfiguration) error {
+	return update(d, fmt.Sprintf("DNSConfiguration:%s", p.ProfileId), p)
+}
+
+func (d *Db) DeleteDNSConfiguration(profileid string) error {
+	/*rulesets := d.GetDNSRuleSets()
+	for _, rule := range rulesets {
+		if rule.CategoryId == profileid {
+			return fmt.Errorf("Category in use by %s rule set", rule.RuleSetName)
+		}
+	}*/
+	return delete(d, fmt.Sprintf("DNSConfiguration:%s", profileid))
 }
