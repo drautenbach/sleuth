@@ -125,6 +125,15 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 
 	c := new(dns.Client)
 	fallbackAddress := s.settings.FallbackDNS
+
+	if fallbackAddress == "" {
+		fallbackAddress = "1.1.1.1"
+	} else {
+		if net.ParseIP(fallbackAddress) == nil {
+			fallbackAddress = "1.1.1.1"
+		}
+	}
+
 	if len(strings.Split(fallbackAddress, ":")) < 2 {
 		fallbackAddress = fmt.Sprintf("%s:53", fallbackAddress)
 	}

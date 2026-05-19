@@ -13,7 +13,6 @@ import (
 func main() {
 	logger.Info("Starting Sleuth %s...\n", AppVersion)
 	p := InitPortal()
-	initDefaults(p)
 
 	defer p.db.Close()
 	// start HTTP and DNS servers concurrently and keep main alive

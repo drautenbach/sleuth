@@ -58,6 +58,7 @@ func InitPortal() *Portal {
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
+	initDefaults(p)
 	p.rules = *rules.Init(p.db, p.config.settings)
 	p.rules.InitDefaults()
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
