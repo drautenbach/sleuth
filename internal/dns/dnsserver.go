@@ -11,6 +11,7 @@ import (
 	"sleuth/internal/firewall"
 	"sleuth/internal/security"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -200,7 +201,14 @@ func (s *DnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	switch r.Opcode {
 	case dns.OpcodeQuery:
 		if w.RemoteAddr() != nil {
-			s.parseQuery(w.RemoteAddr(), lastDstIP[strings.Split(w.RemoteAddr().String(), ":")[0]], m)
+			remoteIP := strings.Split(w.RemoteAddr().String(), ":")[0]
+			var localIP string
+			if val, ok := lastDstIP.Load(remoteIP); ok {
+				localIP = val.(string)
+			} else {
+				localIP = w.RemoteAddr().String()
+			}
+			s.parseQuery(w.RemoteAddr(), localIP, m)
 		}
 	}
 
@@ -320,7 +328,7 @@ func newPktinfoConn(conn *net.UDPConn) (*pktinfoConn, error) {
 	return &pktinfoConn{conn}, nil*/
 }
 
-var lastDstIP map[string]string = make(map[string]string)
+var lastDstIP sync.Map // was: var lastDstIP map[string]string = make(map[string]string)
 
 func (p *pktinfoConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, cm, raddr, err := p.pconn.ReadFrom(b)
@@ -331,7 +339,7 @@ func (p *pktinfoConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	if cm != nil && cm.Dst != nil {
 		host, _, err := net.SplitHostPort(raddr.String())
 		if err == nil {
-			lastDstIP[host] = cm.Dst.String()
+			lastDstIP.Store(host, cm.Dst.String()) // thread-safe
 		}
 	}
 
