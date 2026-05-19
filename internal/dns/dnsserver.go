@@ -58,8 +58,7 @@ func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, 
 				{
 					ttl := header.Ttl
 					qtype := arr[i].Header().Rrtype
-					//_, reason := s.security.VerifyDomainAccess(source, header.Name)
-					allocatedIP, err := s.fw.AllocateIPv4(ses.ClientIP, header.Name, qtype, arr[i].(*dns.A).A.String(), ttl, ses.RejectReason, if_ip)
+					allocatedIP, err := s.fw.AllocateIPv4(ses.ClientIP, name, qtype, arr[i].(*dns.A).A.String(), ttl, ses.RejectReason, if_ip)
 					if err != nil {
 						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
 					}
@@ -69,8 +68,12 @@ func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, 
 				}
 			case dns.TypeAAAA:
 				fmt.Println(fmt.Errorf("AAAA not yet supported for: %s", header.Name))
-			default:
+			case dns.TypeCNAME:
 				resp[header.Rrtype] = arr[i]
+			default:
+				if ses.RejectReason == 0 {
+					resp[header.Rrtype] = arr[i]
+				}
 			}
 		}
 	}
