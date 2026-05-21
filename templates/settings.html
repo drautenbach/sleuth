@@ -85,6 +85,14 @@
                     </label>
                     <wa-input name="FallbackDNS" value="{{.model.FallbackDNS}}" onchange="form.submit()"></wa-input>
                 </div>
+                <div>
+                    <label for="LocalDomain">Local Domain
+                        <wa-tooltip content="Local domain suffix used to resolve devices on the local network">
+                            <wa-icon name="info-circle"></wa-icon>
+                        </wa-tooltip>
+                    </label>
+                    <wa-input name="LocalDomain" value="{{.model.LocalDomain}}" onchange="form.submit()"></wa-input>
+                </div>
 
 
         </div>

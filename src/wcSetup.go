@@ -37,7 +37,7 @@ func (s *wcSetup) render(c *gin.Context, err error) {
 }
 
 func (s *wcSetup) renderSSL(c *gin.Context, err error) {
-	s.portal.server.HTML(c, "config_ssl", gin.H{
+	s.portal.server.HTML(c, "services_ssl", gin.H{
 		"model": s.portal.config.settings.SSL,
 		"error": err,
 	})
@@ -58,6 +58,7 @@ func wcSetupInit(p *Portal) *wcSetup {
 			setfw := c.PostForm("firewall") != p.config.settings.Firewall
 			p.config.settings.Firewall = c.PostForm("firewall")
 			p.config.settings.FallbackDNS = c.PostForm("FallbackDNS")
+			p.config.settings.LocalDomain = c.PostForm("LocalDomain")
 
 			// convert int to the enum type stored in p.config.settings.Mode using reflection
 			rv := reflect.ValueOf(&p.config.settings.Mode).Elem()
@@ -83,11 +84,11 @@ func wcSetupInit(p *Portal) *wcSetup {
 		setup.render(c, err)
 	})
 
-	p.server.router.GET("/config/ssl", func(c *gin.Context) {
+	p.server.router.GET("/services/ssl", func(c *gin.Context) {
 		setup.renderSSL(c, nil)
 	})
 
-	p.server.router.POST("/config/ssl", func(c *gin.Context) {
+	p.server.router.POST("/services/ssl", func(c *gin.Context) {
 		action := c.Request.FormValue("action")
 		domain := c.Request.FormValue("domain")
 		index := slices.Index(p.config.settings.SSL, domain)

@@ -1143,3 +1143,25 @@ func (d *Db) DeleteDNSConfiguration(profileid string) error {
 	}*/
 	return delete(d, fmt.Sprintf("DNSConfiguration:%s", profileid))
 }
+
+/***************** HTTP Proxy **************************/
+
+func (d *Db) GetHTTPProxyConfiguration(domain string) *HttpProxy {
+	return get[HttpProxy](d, fmt.Sprintf("HttpProxy:%s", domain))
+}
+
+func (d *Db) GetHTTPProxyConfigurations() []HttpProxy {
+	return getAll[HttpProxy](d, "HttpProxy:")
+}
+
+func (d *Db) CreateHTTPProxyConfiguration(p *HttpProxy) error {
+	return create(d, fmt.Sprintf("HttpProxy:%s", p.DomainName), p, 0)
+}
+
+func (d *Db) UpdateHTTPProxyConfiguration(p *HttpProxy) error {
+	return update(d, fmt.Sprintf("HttpProxy:%s", p.DomainName), p)
+}
+
+func (d *Db) DeleteHTTPProxyConfiguration(domain string) error {
+	return delete(d, fmt.Sprintf("HttpProxy:%s", domain))
+}

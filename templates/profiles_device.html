@@ -8,7 +8,7 @@
                     <input type="text" name="macaddress" value="{{.model.Device.MACAddress}}" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
                 </div>
                 <div class="form-group">
-                    <label for="devicename">Name</label>
+                    <label for="devicename">Friendly Name</label>
                     <input type="text" name="devicename" value="{{.model.Device.DeviceName}}" required />
                 </div>
                 <div class="form-group">
@@ -24,7 +24,10 @@
                     <label for="hostname">Host Name</label>
                     <input type="text" name="hostname" value="{{.model.Device.HostName}}" required />
                 </div>
-                <!---add block status-->
+                <div class="form-group">
+                    <label for="hostname">Local DNS Name</label>
+                    <input type="text" name="dnsname" value="{{.model.Device.DNSName}}" required />
+                </div>                
                 <div class="form-group">
                     <label for="enabled">Enabled</label>
                     <wa-switch name="enabled" value="true"{{if .model.Device.Enabled}} checked{{end}}>Enabled</wa-switch>

@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"sleuth/internal/log"
 	"strings"
 	"time"
 
@@ -119,7 +120,8 @@ func (mm *methodMdns) request(destIP net.IP) {
 
 	v, err := randUint16()
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 
 	ip := layers.IPv4{
@@ -137,7 +139,8 @@ func (mm *methodMdns) request(destIP net.IP) {
 
 	err = udp.SetNetworkLayerForChecksum(&ip)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 
 	mdns := layerMdns{
@@ -159,12 +162,14 @@ func (mm *methodMdns) request(destIP net.IP) {
 
 	err = gopacket.SerializeLayers(buf, opts, &eth, &ip, &udp, &mdns)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 
 	err = mm.p.ls.socket.Write(buf.Bytes())
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 }
 
@@ -172,7 +177,8 @@ func (mm *methodMdns) runPeriodicRequests() {
 	for {
 		ips, err := randAvailableIPs(mm.p.ownIP)
 		if err != nil {
-			panic(err)
+			log.Error(err)
+			return
 		}
 
 		for _, dstAddr := range ips {

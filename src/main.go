@@ -171,6 +171,11 @@ func initDefaults(p *Portal) {
 		p.db.SaveSettings(*p.config.settings)
 	}
 
+	if p.config.settings.LocalDomain == "" {
+		p.config.settings.LocalDomain = "home"
+		p.db.SaveSettings(*p.config.settings)
+	}
+
 }
 
 type filteredLogger struct {

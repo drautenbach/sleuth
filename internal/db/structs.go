@@ -25,6 +25,7 @@ type DeviceProfile struct {
 	MACAddress string
 	DeviceName string
 	HostName   string
+	DNSName    string
 	UserName   string
 	Enabled    bool
 }
@@ -45,6 +46,7 @@ type Settings struct {
 	Mode           enumPortalMode
 	DefaultRole    string
 	FallbackDNS    string
+	LocalDomain    string
 	SelfRegEnabled bool
 	Firewall       string
 	SSL            []string
@@ -89,4 +91,11 @@ type Session struct {
 	Username   string
 	MacAddress string
 	Expiry     time.Time
+}
+
+type HttpProxy struct {
+	DomainName string
+	URL        string
+	SSL        bool
+	Enabled    bool
 }

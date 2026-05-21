@@ -1,0 +1,38 @@
+{{template "template-start.html" .}}
+
+    <form method="POST">
+        <span class="right">
+        <nobr>
+            <wa-button size="xs" href="httpproxies/new"><wa-icon name="plus"></wa-icon></wa-button>
+        </nobr>
+        </span>
+    </form>
+    
+    <h2>{{.title}}</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Domain Name</th>
+                <th>SSL</th>
+                <th>URL</th>
+                <th>Enabled</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Configurations}}
+            <tr>
+                <td><a href="httpproxy/{{.DomainName}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td>{{.DomainName}}</td>
+                <td><wa-switch class="disabled" {{if .SSL}}checked{{end}}></wa-switch></td>   
+                <td>{{.URL}}</td>
+                <td><wa-switch class="disabled" {{if .Enabled}}checked{{end}}></wa-switch></td>   
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+    <p><label class="error-message">{{.model.error}}</label></p>
+
+
+{{template "template-end.html" .}}

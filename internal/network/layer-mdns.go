@@ -132,7 +132,7 @@ func (l *layerMdns) DecodeFromBytes(data []byte, _ gopacket.DecodeFeedback) erro
 func (l *layerMdns) SerializeTo(b gopacket.SerializeBuffer, _ gopacket.SerializeOptions) error {
 	data, err := b.AppendBytes(12)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	binary.BigEndian.PutUint16(data[0:2], l.TransactionID)
@@ -150,7 +150,7 @@ func (l *layerMdns) SerializeTo(b gopacket.SerializeBuffer, _ gopacket.Serialize
 
 		data, err := b.AppendBytes(len(enc) + 4)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		copy(data[:len(enc)], enc)

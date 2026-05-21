@@ -3,4 +3,7 @@
     <link rel="stylesheet" href="/lib/search.css" />
 
     <link rel="stylesheet" href="/lib/webawesome/dist/styles/themes/default.css" />
-    <script type="module" src="/lib/webawesome/dist-cdn/webawesome.loader.js" data-webawesome="/lib/webawesome/dist-cdn"></script>  
+    <script type="module" data-webawesome="/lib/webawesome/dist-cdn">
+        import {setIconPath} from '/lib/webawesome/dist-cdn/webawesome.loader.js';
+        setIconPath('/lib/fontawesome/svgs')
+    </script>    

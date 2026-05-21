@@ -33,10 +33,11 @@
         ]
     },
     {
-        "name": "Config",
+        "name": "Services",
         "items": [
-            { "name": "DNS", "href": "/config/dnsconfigurations" },
-             { "name": "SSL", "href": "/config/ssl" }
+            { "name": "DNS", "href": "/services/dnsconfigurations" },
+            { "name": "Proxy", "href": "/services/httpproxies" },
+            { "name": "SSL", "href": "/services/ssl" }
         ]
     },
     {   "name": "System",

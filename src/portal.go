@@ -30,7 +30,7 @@ type WebControllers struct {
 	Setup     wcSetup
 	Stats     wcStats
 	Profiles  wcProfiles
-	DNSConfig wcConfig
+	DNSConfig wcServices
 }
 
 type Portal struct {
@@ -39,6 +39,7 @@ type Portal struct {
 	network     *network.Network
 	server      WebServer
 	config      GlobalConfiguration
+	httpproxy   HttpProxy
 	fw          firewall.FirewallManager
 	wc          WebControllers
 	dns         dns.DnsServer
@@ -53,23 +54,24 @@ func InitPortal() *Portal {
 		fw:      firewall.LoadFirewallManager(),
 		wc:      WebControllers{},
 	}
-	p.security = security.InitSession(p.db, p.network, p.config.settings)
 	p.fw.Init(p.db)
 	p.config = GlobalConfiguration{
 		settings: p.db.GetSettings(),
 	}
 	initDefaults(p)
+	p.security = security.InitSession(p.db, p.network, p.config.settings)
 	p.rules = *rules.Init(p.db, p.config.settings)
 	p.rules.InitDefaults()
 	p.fw.SetActiveFirewall(p.config.settings.Firewall)
-	p.dns = *dns.InitDnsServer(p.fw, p.db, p.security, p.config.settings)
+	p.dns = *dns.InitDnsServer(p.fw, p.db, p.security, p.network, p.config.settings)
 	p.server = *initWebServer(60*time.Minute, p.interceptHandler)
+	p.httpproxy = *wcHttpProxyInit(p)
 
 	p.wc.System = *wcSystemInit(p)
 	p.wc.Setup = *wcSetupInit(p)
 	p.wc.Profiles = *wcProfilesInit(p)
 	p.wc.Stats = *wcStatsInit(p)
-	p.wc.DNSConfig = *wcConfigInit(p)
+	p.wc.DNSConfig = *wcServicesInit(p)
 	p.server.router.GET("/logout", p.logout)
 
 	p.certManager = &autocert.Manager{

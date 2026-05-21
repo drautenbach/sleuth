@@ -1,0 +1,45 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+                <div class="form-group">
+                    <label for="DomainName">Fully Qualified Domain Name</label>
+                    <input type="text" id="DomainName" name="DomainName" value="{{.model.Configuration.DomainName}}" required {{if eq $.action "edit"}}readonly{{end}}/>
+                </div>
+                <div class="form-group">
+                    <label for="SSL">SSL</label>
+                    <wa-switch id="SSL" name="SSL" {{if .model.Configuration.SSL}}checked{{end}}>Enabled</wa-switch>
+                </div>
+                <div class="form-group">
+                    <label for="URL">Target URL</label>
+                    <input type="text" id="URL" name="URL" value="{{.model.Configuration.URL}}" required />
+                </div>
+                <div class="form-group">
+                    <label for="Enabled">Enabled</label>
+                    <wa-switch id="Enabled" name="Enabled" {{if .model.Configuration.Enabled}}checked{{end}}>Enabled</wa-switch>
+                </div>
+
+
+                <p><div class="error-message">{{.error}}</div></p>
+                <div class="button-group">
+                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save"></wa-icon> {{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+                    <wa-button variant="default" href="../httpproxies" outline><wa-icon name="arrow-left"></wa-icon> Cancel</wa-button>
+
+                    {{if eq $.action "edit"}}
+                        <span class="right">
+                            <wa-button href="../httpproxies/delete/{{.model.Configuration.DomainName}}" variant="danger" outline><wa-icon name="xmark"></wa-icon> Delete</wa-button>
+                        </span>
+                    {{end}}
+                </div>                    
+        </div>
+    </form>
+
+    <style>
+        .hidden {
+            display: none
+        }
+    </style>
+    
+
+{{template "template-end.html" .}}

@@ -2,6 +2,7 @@ package network
 
 import (
 	"net"
+	"sleuth/internal/log"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -85,13 +86,15 @@ func (mn *methodNbns) request(destIP net.IP) {
 	}
 	conn, err := net.DialUDP("udp", localAddr, remoteAddr)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 	defer conn.Close() //nolint:errcheck
 
 	v, err := randUint16()
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 
 	nbns := layerNbns{
@@ -111,11 +114,13 @@ func (mn *methodNbns) request(destIP net.IP) {
 		ComputeChecksums: true,
 	}
 	if err := gopacket.SerializeLayers(buf, opts, &nbns); err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 
 	if _, err := conn.Write(buf.Bytes()); err != nil {
-		panic(err)
+		log.Error(err)
+		return
 	}
 
 	// close immediately the connection even if this generates a "ICMP"

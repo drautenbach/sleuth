@@ -45,7 +45,7 @@ func (m *natManager) GetStats() ([]Stat, error) {
 
 // AddAllowPort implements FirewallManager.
 func (n *natManager) AddAllowPort(protocol string, port int) error {
-	panic("unimplemented")
+	return errors.New("Not implemented")
 }
 
 // Flush implements FirewallManager.
@@ -55,5 +55,5 @@ func (n *natManager) Flush() error {
 
 // RemoveAllowPort implements FirewallManager.
 func (n *natManager) RemoveAllowPort(protocol string, port int) error {
-	panic("unimplemented")
+	return errors.New("Not implemented")
 }

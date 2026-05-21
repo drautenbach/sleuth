@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"time"
 )
 
@@ -120,7 +121,7 @@ func InitNetwork() *Network {
 	}()
 
 	n := &Network{
-		passiveMode: true,
+		passiveMode: false,
 		ownIP:       ownIP,
 		intf:        intf,
 		arp:         make(chan arpReq),
@@ -206,6 +207,42 @@ func (n *Network) run() {
 		log.Printf("Unable to initilize Nbns listener: %s", err.Error())
 		n.Error = err.Error()
 		return
+	}
+
+	interfaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range interfaces {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+
+			for _, addr := range addrs {
+				var ip net.IP
+				switch v := addr.(type) {
+				case *net.IPNet:
+					ip = v.IP
+					/*case *net.IPAddr: // exclude IP V6
+					ip = v.IP*/
+				}
+
+				if ip != nil && ip.To4() != nil && ip.String() != "127.0.0.1" {
+					key := newNodeKey(iface.HardwareAddr, ip)
+					hostname, _ := os.Hostname()
+
+					if _, ok := n.Nodes[key]; !ok {
+						n.Nodes[key] = &node{
+							LastSeen: time.Now(),
+							Mac:      iface.HardwareAddr,
+							Ip:       ip,
+							Dns:      hostname,
+						}
+					} else {
+						n.Nodes[key].LastSeen = time.Now()
+					}
+				}
+			}
+		}
 	}
 
 	go n.ls.run()

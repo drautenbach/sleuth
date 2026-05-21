@@ -1,5 +1,7 @@
 package network
 
+import "sleuth/internal/log"
+
 type listener struct {
 	p      *Network
 	socket *rawSocket
@@ -27,7 +29,8 @@ func (ls *listener) run() {
 	for {
 		raw, err := ls.socket.Read()
 		if err != nil {
-			panic(err)
+			log.Error(err)
+			return
 		}
 
 		ls.p.ma.listen <- raw

@@ -144,8 +144,6 @@ func (s *Security) ResolveMacAddress(clientIP string) string {
 }
 
 func (s *Security) ResolveUserByMacAddress(clientIP string) (*db.UserProfile, string) {
-	settings := s.db.GetSettings()
-
 	macaddress := network.Search(clientIP)
 	node := s.network.FindByIP(clientIP)
 	if node != nil {
@@ -153,20 +151,13 @@ func (s *Security) ResolveUserByMacAddress(clientIP string) (*db.UserProfile, st
 	}
 
 	var device *db.DeviceProfile
-	var username string
 	if macaddress == "" {
-		if settings.Mode != db.ModeAllow {
-			return nil, ""
-		}
-		username = settings.DefaultRole
+		return nil, ""
 	} else {
 		device = s.db.GetDevice(macaddress)
 		deviceName := ""
 
 		if device == nil {
-			if settings.Mode == db.ModeBlock {
-				return nil, ""
-			}
 			if node != nil {
 				if node.Mdns != "" {
 					deviceName = node.Mdns
@@ -179,52 +170,20 @@ func (s *Security) ResolveUserByMacAddress(clientIP string) (*db.UserProfile, st
 				}
 			}
 			name := deviceName
-			if name == "" {
-				name = "Unknown"
+			if name != "" {
+				s.db.CreateDevice(&db.DeviceProfile{
+					MACAddress: macaddress,
+					DeviceName: name,
+					HostName:   deviceName,
+					DNSName:    deviceName,
+					Enabled:    s.settings.Mode != db.ModeBlock,
+				})
 			}
-			s.db.CreateDevice(&db.DeviceProfile{
-				MACAddress: macaddress,
-				DeviceName: name,
-				HostName:   deviceName,
-			})
 		} else if device.UserName != "" {
 			return s.db.GetUser(device.UserName), macaddress
-		} else {
-			return nil, ""
-		}
-
-		if settings.Mode == db.ModeCaptive {
-			return nil, ""
-		}
-
-		username = deviceName
-		if username == "" || username == "Unknown" {
-			username = settings.DefaultRole
-		}
-
-	}
-
-	user := s.db.GetUser(username)
-	if user == nil {
-		user = &db.UserProfile{
-			UserName: username,
-			FullName: username,
-			Enabled:  true,
-			Role:     settings.DefaultRole,
-		}
-		if s.db.CreateUser(user) != nil {
-			return nil, ""
 		}
 	}
-
-	if device != nil {
-		device.UserName = user.UserName
-		if s.db.UpdateDevice(device) == nil {
-			return user, macaddress
-		}
-	}
-
-	return user, macaddress
+	return nil, macaddress
 }
 
 func (s *Security) IsAllowedPortalAccess(Username string) bool {

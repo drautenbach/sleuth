@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"log"
 	"net"
 	"time"
 
@@ -110,18 +111,18 @@ func (ma *methodArp) runPeriodicRequests() {
 	for {
 		ips, err := randAvailableIPs(ma.p.ownIP)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		for _, dstAddr := range ips {
 			arp.DstProtAddress = dstAddr
 			if err := gopacket.SerializeLayers(buf, opts, &eth, &arp); err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 
 			err := ma.p.ls.socket.Write(buf.Bytes())
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 
 			// more results if there's a minimum delay between arps

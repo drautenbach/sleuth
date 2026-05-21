@@ -9,6 +9,7 @@ import (
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
 	"sleuth/internal/firewall"
+	"sleuth/internal/network"
 	"sleuth/internal/security"
 	"strings"
 	"sync"
@@ -21,8 +22,9 @@ import (
 type DnsServer struct {
 	db       *db.Db
 	fw       firewall.FirewallManager
-	security security.Security
-	settings db.Settings
+	network  *network.Network
+	security *security.Security
+	settings *db.Settings
 }
 
 func (s *DnsServer) parseQuery(source net.Addr, interfaceAddress string, m *dns.Msg) {
@@ -87,10 +89,55 @@ func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, 
 	return values
 }
 
+func (s *DnsServer) queryLocal(name string, qtype uint16) ([]dns.RR, error) {
+	localdomain := s.settings.LocalDomain
+	if s.db == nil {
+		return nil, errors.New("Db access required to query local")
+	}
+	if s.network == nil {
+		return nil, errors.New("Db access required to query local")
+	}
+	if s.settings == nil {
+		return nil, errors.New("Settings access required to query local")
+	}
+	if localdomain == "" {
+		return nil, errors.New("Local domain not specified")
+	}
+	if localdomain[0] != '.' {
+		localdomain = "." + localdomain
+	}
+	if localdomain[len(localdomain)-1] != '.' {
+		localdomain += "."
+	}
+	if len(name) > len(localdomain) && name[len(name)-len(localdomain):] == localdomain {
+		hostname := name[0 : len(name)-len(localdomain)]
+		res := make([]dns.RR, 0)
+
+		for _, device := range s.db.GetDevices() {
+			if device.DNSName == hostname {
+				dev := s.network.FindByMac(device.MACAddress)
+				if dev.Ip != nil {
+					rr, err := dns.NewRR(fmt.Sprintf("%s %s %s", name, getQueryTypeText(qtype), dev.Ip.String()))
+					res = append(res, rr)
+					if err != nil {
+						log.Println(err)
+						return []dns.RR{}, err
+					}
+
+				}
+			}
+		}
+
+		return res, nil
+	}
+	return nil, errors.New("Not within local domain")
+
+}
+
 func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if_ip string) ([]dns.RR, int) {
 	arr := make([]dns.RR, 0)
 
-	arr, err := queryLocal(name, qtype)
+	arr, err := s.queryLocal(name, qtype)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved as local address")
 		return arr, dns.RcodeSuccess
@@ -219,12 +266,13 @@ func (s *DnsServer) handleDnsRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.Close()
 }
 
-func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Security, settings *db.Settings) *DnsServer {
+func InitDnsServer(fw firewall.FirewallManager, db *db.Db, security *security.Security, network *network.Network, settings *db.Settings) *DnsServer {
 	s := &DnsServer{
 		fw:       fw,
 		db:       db,
-		security: *security,
-		settings: *settings,
+		security: security,
+		settings: settings,
+		network:  network,
 	}
 	GetConfig().ReadConfig()
 	GetConfig().Print()

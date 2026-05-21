@@ -422,6 +422,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			HostName:   c.PostForm("hostname"),
 			UserName:   c.PostForm("username"),
 			DeviceName: c.PostForm("devicename"),
+			DNSName:    c.PostForm("dnsname"),
 			Enabled:    c.PostForm("enabled") == "true",
 		}
 		var err = p.db.CreateDevice(d)
@@ -470,14 +471,12 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 					deviceName = node.Dns
 				}
 			}
-			hostname := deviceName
-			if hostname == "" {
-				hostname = "Unknown"
-			}
 			device = &db.DeviceProfile{
 				MACAddress: macaddress,
 				DeviceName: deviceName,
-				HostName:   hostname,
+				HostName:   deviceName,
+				DNSName:    deviceName,
+				Enabled:    true,
 			}
 			p.server.HTML(c, "profiles_device", gin.H{
 				"action":    "create",
@@ -491,15 +490,16 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		}
 	})
 
-	p.server.router.POST("/profiles/device/:devicename", func(c *gin.Context) {
-		var d = p.db.GetDevice(c.Param("devicename"))
+	p.server.router.POST("/profiles/device/:macaddress", func(c *gin.Context) {
+		var d = p.db.GetDevice(c.Param("macaddress"))
 		var err error
 		if d == nil {
-			err = fmt.Errorf("device %s does not exist", c.Param("devicename"))
+			err = fmt.Errorf("device %s does not exist", c.Param("macaddress"))
 		} else {
 			d.HostName = c.PostForm("hostname")
 			d.UserName = c.PostForm("username")
 			d.DeviceName = c.PostForm("devicename")
+			d.DNSName = c.PostForm("dnsname")
 			d.Enabled = c.PostForm("enabled") == "true"
 			p.db.UpdateDevice(d)
 		}
