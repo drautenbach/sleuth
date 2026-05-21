@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -73,37 +72,11 @@ func InitPortal() *Portal {
 	p.wc.Stats = *wcStatsInit(p)
 	p.wc.DNSConfig = *wcServicesInit(p)
 	p.server.router.GET("/logout", p.logout)
-
-	p.certManager = &autocert.Manager{
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(p.config.settings.SSL...),
-		Cache:      autocert.DirCache("certs"), // folder to store certs
-	}
+	p.httpproxy.ApplyConfiguration()
 
 	webShellInit(p)
 
 	return p
-}
-
-func (p *Portal) redirectHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// decide whether redirect is needed
-
-		wl := slices.Index(p.config.settings.SSL, r.Host) > -1
-
-		if r.URL.Scheme == "https" && !wl {
-			http.Redirect(w, r, "http://"+r.Host+r.URL.RequestURI(), http.StatusMovedPermanently)
-			return
-		}
-
-		if r.URL.Scheme == "http" && wl {
-			http.Redirect(w, r, "https://"+r.Host+r.URL.RequestURI(), http.StatusMovedPermanently)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (p *Portal) logout(c *gin.Context) {
@@ -328,7 +301,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 						}
 					} else {
 						ip := clientIP(c.Request)
-						p.security.CreateSession(ip, u.UserName, p.security.ResolveMacAddress(ip))
+						p.security.SetSession(ip, u.UserName, "", 0)
 						allrules := p.db.GetFwdRulesByClient(ip)
 						for i := range allrules {
 							if allrules[i].ReasonCode != 0 {

@@ -115,7 +115,9 @@ func (wcSystem) GetLocalUsers() ([]LocalUser, error) {
 				}
 			}
 		}
-
+		if err := shadowScanner.Err(); err != nil {
+			return []LocalUser{}, err
+		}
 	}
 	defer shadowFile.Close()
 

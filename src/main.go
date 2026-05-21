@@ -23,7 +23,7 @@ func main() {
 			TLSConfig: &tls.Config{
 				GetCertificate: p.certManager.GetCertificate,
 			},
-			Handler:  p.certManager.HTTPHandler(p.redirectHandler(p.server.router)),
+			Handler:  p.certManager.HTTPHandler(p.httpproxy.WAFHandler(p.server.router)),
 			ErrorLog: log.New(&filteredLogger{logger: log.Default()}, "", log.LstdFlags),
 		}
 		logger.Print("HTTPS server running on port 443")
@@ -33,7 +33,7 @@ func main() {
 	go func() {
 		httpServer := &http.Server{
 			Addr:    ":80",
-			Handler: p.certManager.HTTPHandler(p.redirectHandler(p.server.router)),
+			Handler: p.certManager.HTTPHandler(p.httpproxy.WAFHandler(p.server.router)),
 		}
 		logger.Print("HTTP server running on port 80")
 		logger.Error(httpServer.ListenAndServe())

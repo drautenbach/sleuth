@@ -89,7 +89,7 @@ func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, 
 	return values
 }
 
-func (s *DnsServer) queryLocal(name string, qtype uint16) ([]dns.RR, error) {
+func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip string) ([]dns.RR, error) {
 	localdomain := s.settings.LocalDomain
 	if s.db == nil {
 		return nil, errors.New("Db access required to query local")
@@ -111,24 +111,25 @@ func (s *DnsServer) queryLocal(name string, qtype uint16) ([]dns.RR, error) {
 	}
 	if len(name) > len(localdomain) && name[len(name)-len(localdomain):] == localdomain {
 		hostname := name[0 : len(name)-len(localdomain)]
-		res := make([]dns.RR, 0)
+		arr := make([]dns.RR, 0)
 
 		for _, device := range s.db.GetDevices() {
 			if device.DNSName == hostname {
 				dev := s.network.FindByMac(device.MACAddress)
 				if dev.Ip != nil {
-					rr, err := dns.NewRR(fmt.Sprintf("%s %s %s", name, getQueryTypeText(qtype), dev.Ip.String()))
-					res = append(res, rr)
+					rr, err := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60, getQueryTypeText(qtype), dev.Ip.String()))
+					arr = append(arr, rr)
 					if err != nil {
 						log.Println(err)
 						return []dns.RR{}, err
 					}
-
 				}
 			}
 		}
 
-		return res, nil
+		s.security.VerifyDomainAccess(source, name)
+		return arr, nil
+
 	}
 	return nil, errors.New("Not within local domain")
 
@@ -137,7 +138,7 @@ func (s *DnsServer) queryLocal(name string, qtype uint16) ([]dns.RR, error) {
 func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if_ip string) ([]dns.RR, int) {
 	arr := make([]dns.RR, 0)
 
-	arr, err := s.queryLocal(name, qtype)
+	arr, err := s.queryLocal(name, qtype, source, if_ip)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved as local address")
 		return arr, dns.RcodeSuccess

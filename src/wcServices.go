@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"reflect"
 	"sleuth/internal/db"
 	"strconv"
@@ -654,13 +655,17 @@ func wcServicesInit(p *Portal) *wcServices {
 		if configuration == nil {
 			err = fmt.Errorf("DNS Configuration %s does not exist", c.Param("profileid"))
 		} else {
-			configuration.URL = c.PostForm("URL")
-			configuration.SSL = c.PostForm("SSL") == "on"
-			configuration.Enabled = c.PostForm("Enabled") == "on"
-			err = p.db.UpdateHTTPProxyConfiguration(configuration)
+			_, err := url.Parse(c.PostForm("URL"))
+			if err == nil {
+				configuration.URL = c.PostForm("URL")
+				configuration.SSL = c.PostForm("SSL") == "on"
+				configuration.Enabled = c.PostForm("Enabled") == "on"
+				err = p.db.UpdateHTTPProxyConfiguration(configuration)
+			}
 		}
 
 		if err == nil {
+			p.httpproxy.ApplyConfiguration()
 			c.Redirect(http.StatusSeeOther, "/services/httpproxies")
 			c.Abort()
 		} else {

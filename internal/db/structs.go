@@ -1,6 +1,8 @@
 package db
 
-import "time"
+import (
+	"time"
+)
 
 type UserProfile struct {
 	UserName      string
@@ -49,8 +51,8 @@ type Settings struct {
 	LocalDomain    string
 	SelfRegEnabled bool
 	Firewall       string
-	SSL            []string
-	APIs           struct {
+	//	SSL            []string
+	APIs struct {
 		DomScan API_DomScan
 	}
 }
@@ -91,6 +93,7 @@ type Session struct {
 	Username   string
 	MacAddress string
 	Expiry     time.Time
+	ReasonCode uint16
 }
 
 type HttpProxy struct {

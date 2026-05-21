@@ -36,8 +36,7 @@
         "name": "Services",
         "items": [
             { "name": "DNS", "href": "/services/dnsconfigurations" },
-            { "name": "Proxy", "href": "/services/httpproxies" },
-            { "name": "SSL", "href": "/services/ssl" }
+            { "name": "Proxy", "href": "/services/httpproxies" }
         ]
     },
     {   "name": "System",

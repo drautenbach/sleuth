@@ -21,6 +21,8 @@ func InitSession(db *db.Db, network *network.Network, settings *db.Settings) *Se
 func (s *Security) GetSession(IP string) (string, error) {
 	ses := s.db.GetSession(IP)
 	if ses != nil {
+		s.db.DeleteSession(IP)
+		s.db.CreateSession(ses) // update ttl
 		return ses.Username, nil
 	}
 	return "", fmt.Errorf("session does not exist")
@@ -30,37 +32,62 @@ func (s *Security) ClearSession(IP string) error {
 	return s.db.DeleteSession(IP)
 }
 
-func (s *Security) CreateSession(IP string, Username string, MacAddress string) *db.Session {
-	session := &db.Session{
-		IP:         IP,
-		Username:   Username,
-		MacAddress: MacAddress,
+func (s *Security) SetSession(IP string, Username string, MacAddress string, ReasonCode uint16) *db.Session {
+	session := s.db.GetSession(IP)
+	if session == nil {
+		session := &db.Session{
+			IP:         IP,
+			Username:   Username,
+			MacAddress: MacAddress,
+			ReasonCode: ReasonCode,
+		}
+		s.db.CreateSession(session)
+	} else {
+		s.db.DeleteSession(IP)
+		if Username != "" {
+			session.Username = Username
+		}
+		if MacAddress != "" {
+			session.MacAddress = MacAddress
+		}
+		session.ReasonCode = ReasonCode
+		s.db.CreateSession(session)
 	}
-	s.db.CreateSession(session)
 	return session
 }
 
 func (s *Security) VerifyDomainAccess(clientIP string, hostname string) (bool, uint16) {
 	var user *db.UserProfile
 	var macaddress string
+	var username = ""
+	reasoncode := constants.AccessBlockedNotAuthenticated
 
 	if session := s.db.GetSession(clientIP); session != nil {
-		if user = s.db.GetUser(session.Username); user != nil && user.Enabled {
-			return true, constants.AccessAllowed
+		if user = s.db.GetUser(session.Username); user != nil {
+			if user.Enabled {
+				return true, constants.AccessAllowed
+			} else {
+				username = user.UserName
+				reasoncode = constants.AccessBlockedUnauthorised
+			}
 		}
 	} else {
-		if user, macaddress = s.ResolveUserByMacAddress(clientIP); user != nil && user.Enabled {
-			s.CreateSession(clientIP, user.UserName, macaddress)
-			return true, constants.AccessAllowed
+		if user, macaddress = s.ResolveUserByMacAddress(clientIP); user != nil {
+			if user.Enabled {
+				s.SetSession(clientIP, user.UserName, macaddress, 0)
+				return true, constants.AccessAllowed
+			} else {
+				username = user.UserName
+				reasoncode = constants.AccessBlockedUnauthorised
+			}
 		}
 	}
 
-	settings := s.db.GetSettings()
-	if settings.Mode == db.ModeBlock {
-		return false, constants.AccessBlockedUnauthorised
-	} else {
-		return false, constants.AccessBlockedNotAuthenticated
+	if s.settings.Mode == db.ModeBlock {
+		reasoncode = constants.AccessBlockedUnauthorised
 	}
+	s.SetSession(clientIP, username, macaddress, constants.AccessBlockedUnauthorised)
+	return false, reasoncode
 
 }
 
@@ -83,14 +110,18 @@ func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 	}
 
 	if ses = s.db.GetSession(clientIP); ses != nil {
-		user = s.db.GetUser(ses.Username)
+		if ses.Username != "" {
+			user = s.db.GetUser(ses.Username)
+		} else {
+			sessionInfo.RejectReason = constants.AccessBlockedNotAuthenticated
+		}
 	} else {
 		if user, macaddress = s.ResolveUserByMacAddress(clientIP); user != nil && user.Enabled && user.Role != "" {
-			ses = s.CreateSession(clientIP, user.UserName, macaddress)
+			ses = s.SetSession(clientIP, user.UserName, macaddress, 0)
 		}
 	}
 
-	if ses == nil {
+	if ses == nil || user == nil {
 		settings := s.db.GetSettings()
 		if settings.Mode != db.ModeBlock {
 			sessionInfo.RejectReason = constants.AccessBlockedNotAuthenticated
