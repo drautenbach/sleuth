@@ -1,0 +1,38 @@
+{{template "template-start.html" .}}
+
+    <h2>Sessions</h2>
+
+    <p>
+        <h4>Active Sessions</h4>
+        <table border="1" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>IP</th>
+                    <th>MacAddress</th>
+                    <th>Username</th>
+                    <th>Block Code</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .model.Sessions}}
+                <tr>
+                    <td>{{.IP}}</td>
+                    <td>{{.MacAddress}}</td>
+                    <td>{{.Username}}</td>
+                    <td>{{.ReasonCode}}</td>
+                    <td>
+                        <form method="POST">
+                            <input type="hidden" name="IP" value="{{.IP}}" />
+                            <wa-button variant="danger" style="font-size: 10px;" type="submit" name="action" value="delete"><wa-icon name="xmark"></wa-icon></wa-button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </p>
+
+    <p><label class="error-message">{{.model.Error}}</label></p>
+
+{{template "template-end.html" .}}

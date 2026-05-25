@@ -48,42 +48,51 @@ func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) ([]dn
 }
 
 func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, ses security.SessionInfo, if_ip string) []dns.RR {
-	resp := make(map[uint16]dns.RR)
+	resp := make(map[uint16][]dns.RR)
 	ttl := uint32(32767)
 	for i := range arr {
 		header := arr[i].Header()
 		if header.Ttl < ttl {
 			ttl = header.Ttl
 		}
-		if resp[header.Rrtype] == nil {
-			switch header.Rrtype {
-			case dns.TypeA:
-				{
+		switch header.Rrtype {
+		case dns.TypeA:
+			{
+				if resp[header.Rrtype] == nil {
 					ttl := header.Ttl
 					qtype := arr[i].Header().Rrtype
 					allocatedIP, err := s.fw.AllocateIPv4(ses.ClientIP, name, qtype, arr[i].(*dns.A).A.String(), ttl, ses.RejectReason, if_ip)
 					if err != nil {
 						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
+					} else {
+						newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", header.Name, 1 /*ttl*/, getQueryTypeText(header.Rrtype), allocatedIP))
+						resp[header.Rrtype] = make([]dns.RR, 1)
+						resp[header.Rrtype][0] = newRR
 					}
-					newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", header.Name, 1 /*ttl*/, getQueryTypeText(header.Rrtype), allocatedIP))
-					resp[header.Rrtype] = newRR
-
 				}
-			case dns.TypeAAAA:
-				fmt.Println(fmt.Errorf("AAAA not yet supported for: %s", header.Name))
-			case dns.TypeCNAME:
-				resp[header.Rrtype] = arr[i]
-			default:
-				if ses.RejectReason == 0 {
-					resp[header.Rrtype] = arr[i]
+			}
+		case dns.TypeAAAA:
+			fmt.Println(fmt.Errorf("AAAA not yet supported for: %s", header.Name))
+		case dns.TypeCNAME:
+			if resp[header.Rrtype] == nil {
+				resp[header.Rrtype] = make([]dns.RR, 0)
+			}
+			resp[header.Rrtype] = append(resp[header.Rrtype], arr[i])
+		default:
+			if ses.RejectReason == 0 {
+				if resp[header.Rrtype] == nil {
+					resp[header.Rrtype] = make([]dns.RR, 0)
 				}
+				resp[header.Rrtype] = append(resp[header.Rrtype], arr[i])
 			}
 		}
 	}
 
 	values := make([]dns.RR, 0, len(resp))
 	for _, v := range resp {
-		values = append(values, v)
+		for _, w := range v {
+			values = append(values, w)
+		}
 	}
 	s.db.CreateDNSCacheRecord(ses.ClientIP, name, qtype, ttl, &values)
 	return values

@@ -4,8 +4,7 @@
         "title": "Getting Started",
         "href": "/",
         "items": [
-            { "name": "Basic Settings", "href": "/settings"},
-            { "name": "Terminal", "href": "/shell"}
+            { "name": "Basic Settings", "href": "/settings"}
         ]
     },
     {
@@ -42,13 +41,12 @@
         ]
     },
     {   "name": "System",
-        "href": "/system",
         "items": [
              { "name": "Users", "href": "/system/users" },
              { "name": "Network", "href": "/system/network" },
-             { "name": "Logs", "href": "/system/logs" },
-             { "name": "DNS", "href": "/setup/dns" },
-             { "name": "Reverse proxy", "href": "/setup/proxy" }
+             { "name": "Sessions", "href": "/system/sessions" },
+             { "name": "Terminal", "href": "/shell"},
+             { "name": "Logs", "href": "/system/logs" }
         ]
     }
 

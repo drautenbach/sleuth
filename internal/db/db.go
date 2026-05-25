@@ -653,111 +653,19 @@ func (d *Db) getFwdRulesByKey(key string) []constants.FwdRule {
 /*             Session                            */
 
 func (d *Db) GetSessions() []Session {
-	prefix := []byte("session:")
-	var sessions []Session
-	err := d.dbInstance.View(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		opts.Prefix = prefix
-		it := txn.NewIterator(opts)
-		defer it.Close()
-
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			item := it.Item()
-			//k := item.Key()
-			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
-			if err != nil {
-				return err
-			}
-			var s Session
-			if err := json.Unmarshal(v, &s); err != nil {
-				return err
-			}
-			s.Expiry = time.Unix(int64(item.ExpiresAt()), 0)
-			sessions = append(sessions, s)
-			//log.Infof("Key: %s, Value: %s\n", k, v)
-		}
-		return nil
-	})
-
-	if err != nil {
-		panic(err)
-	}
-	return sessions
+	return getAll[Session](d, "session:")
 }
 
 func (d *Db) GetSession(IP string) *Session {
-	var s Session
-	found := false
-	key := []byte("session:" + IP)
-	err := d.dbInstance.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(key)
-		if err != nil {
-			if err == badger.ErrKeyNotFound {
-				// not found, return nil error and let caller receive nil
-				return nil
-			}
-			return err
-		}
-
-		if err := item.Value(func(val []byte) error {
-			txn.Delete(key)
-			err = txn.SetEntry(badger.NewEntry(key, val).WithTTL(time.Minute * 15))
-			return json.Unmarshal(val, &s)
-		}); err != nil {
-			return err
-		}
-		found = true
-		return nil
-	})
-
-	if err != nil {
-		panic(err)
-	}
-	if !found {
-		return nil
-	}
-
-	return &s
+	return get[Session](d, fmt.Sprintf("session:%s", IP))
 }
 
 func (d *Db) CreateSession(s *Session) error {
-	return d.dbInstance.Update(func(txn *badger.Txn) error {
-		user, err := txn.Get([]byte("session:" + s.IP))
-		if user != nil {
-			return fmt.Errorf("session for %s already exists", s.IP)
-		}
-
-		key := "session:" + s.IP
-		val, err := json.Marshal(s)
-
-		if err != nil {
-			return err
-		}
-		err = txn.SetEntry(badger.NewEntry([]byte(key), val).WithTTL(time.Minute * 15))
-		if err != nil {
-			panic(err)
-		}
-		return nil
-	})
+	return create[Session](d, fmt.Sprintf("session:%s", s.IP), s, time.Minute*15)
 }
 
 func (d *Db) DeleteSession(IP string) error {
-	return d.dbInstance.Update(func(txn *badger.Txn) error {
-		key := "session:" + IP
-
-		item, err := txn.Get([]byte("session:" + IP))
-		if err != nil {
-			return err
-		}
-		if item == nil {
-			return fmt.Errorf("session for %s does not exist", IP)
-		}
-		err = txn.Delete([]byte(key))
-		if err != nil {
-			panic(err)
-		}
-		return nil
-	})
+	return delete(d, fmt.Sprintf("session:%s", IP))
 }
 
 /***************** CRUD **************************/

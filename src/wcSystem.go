@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -59,6 +60,34 @@ func wcSystemInit(p *Portal) *wcSystem {
 			},
 		})
 	})
+
+	p.server.router.GET("/system/sessions", func(c *gin.Context) {
+		p.server.HTML(c, "system_sessions", gin.H{
+			"model": gin.H{
+				"Sessions": p.db.GetSessions(),
+			},
+		})
+	})
+
+	p.server.router.POST("/system/sessions", func(c *gin.Context) {
+		action := c.Request.FormValue("action")
+		var err error
+		if action == "delete" {
+			ip := c.Request.FormValue("IP")
+			err = p.db.DeleteSession(ip)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, "/system/sessions")
+				return
+			}
+		}
+		p.server.HTML(c, "system_sessions", gin.H{
+			"model": gin.H{
+				"Sessions": p.db.GetSessions(),
+				"Error":    err,
+			},
+		})
+	})
+
 	return s
 }
 
