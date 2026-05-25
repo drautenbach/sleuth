@@ -116,7 +116,7 @@ func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip s
 		for _, device := range s.db.GetDevices() {
 			if device.DNSName == hostname {
 				dev := s.network.FindByMac(device.MACAddress)
-				if dev.Ip != nil {
+				if dev != nil && dev.Ip != nil {
 					rr, err := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60, getQueryTypeText(qtype), dev.Ip.String()))
 					arr = append(arr, rr)
 					if err != nil {

@@ -35,8 +35,10 @@
     {
         "name": "Services",
         "items": [
-            { "name": "DNS", "href": "/services/dnsconfigurations" },
-            { "name": "Proxy", "href": "/services/httpproxies" }
+            { "name": "DNS Client", "href": "/services/dnsconfigurations" },
+            { "name": "Proxy", "href": "/services/httpproxies" },
+            { "name": "WAF Rules", "href": "/services/wafrules" },
+            { "name": "WAF Configurations", "href": "/services/wafconfigurations" }
         ]
     },
     {   "name": "System",

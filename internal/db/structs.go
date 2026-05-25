@@ -98,7 +98,26 @@ type Session struct {
 
 type HttpProxy struct {
 	DomainName string
-	URL        string
 	SSL        bool
+	URL        string
 	Enabled    bool
+	WAFConfig  string
+}
+
+type WafRule struct {
+	ID      int
+	Message string
+	Tags    []string
+	Phase   string
+	Action  string
+	File    string
+	Raw     string
+
+	IsSystem bool
+}
+
+type WAFConfiguration struct {
+	Name    string
+	Raw     string
+	Enabled bool
 }

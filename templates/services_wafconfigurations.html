@@ -3,26 +3,26 @@
     <form method="POST">
         <span class="right">
         <nobr>
-            <wa-button size="xs" href="dnsconfigurations/new"><wa-icon name="plus"></wa-icon></wa-button>
+            <wa-button size="xs" href="wafconfigurations/new"><wa-icon name="plus"></wa-icon></wa-button>
         </nobr>
         </span>
     </form>
     
-    <h2>DNS Client Configurations</h2>
+    <h2>{{.title}}</h2>
     <table border="1" cellspacing="0" cellpadding="0">
         <thead>
             <tr>
                 <th></th>
-                <th>Name</th>    
-                <th>Address</th>
+                <th>Name</th>
+                <th>Enabled</th>
             </tr>
         </thead>
         <tbody>
-            {{range .model.Profiles}}
+            {{range .model.Configurations}}
             <tr>
-                <td><a href="DNSConfiguration/{{.ProfileId}}"><wa-icon name="pencil-square"></wa-icon></a></td>
+                <td><a href="wafconfiguration/{{.Name}}"><wa-icon name="pencil-square"></wa-icon></a></td>
                 <td>{{.Name}}</td>
-                <th>{{.Address}}</th>
+                <td><wa-switch class="disabled" {{if .Enabled}}checked{{end}}></wa-switch></td>   
             </tr>
             {{end}}
         </tbody>

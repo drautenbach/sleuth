@@ -1,0 +1,73 @@
+{{template "template-start.html" .}}
+
+    <form method="post">
+        <div class="form-layout">
+            <h3>{{.title}}</h3>
+            
+                <div class="form-group">
+                    <label for="ID">ID</label>
+                    {{if eq .model.Rule.ID 0}}
+                    <input type="text" id="ID" name="ID" value="" required {{if eq $.action "edit"}}readonly{{end}}/>
+                    {{end}}
+                    {{if ne .model.Rule.ID 0}}
+                    <input type="text" id="ID" name="ID" value="{{.model.Rule.ID}}" required {{if eq $.action "edit"}}readonly{{end}}/>
+                    {{end}}
+                </div>
+
+                <div class="form-group">
+                    <label for="Message">Message</label>
+                    <input type="text" id="Message" name="Message" value="{{.model.Rule.Message}}" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="Message">Tags</label>
+                    <input type="text" id="Tags" name="Tags" value="{{.model.Rule.Tags}}"  />
+                </div>
+
+                <div class="form-group">
+                    <label for="Message">Phase</label>
+                    <input type="text" id="Phase" name="Phase" value="{{.model.Rule.Phase}}"  />
+                </div>
+
+                <div class="form-group">
+                    <label for="Action">Action</label>
+                    <input type="text" id="Action" name="Action" value="{{.model.Rule.Phase}}"  />
+                </div>
+                
+                <div class="form-group">
+                    <label for="File">File</label>
+                    <input type="text" id="File" name="File" value="{{.model.Rule.File}}"  />
+                </div>
+
+                <div class="form-group">
+                    <label for="Raw">Raw</label>
+                    <wa-textarea type="textarea" id="Raw" name="Raw" stle="width: 100%" value="{{.model.Rule.Raw}}"></wa-textarea>
+                </div>
+
+
+
+                <p><div class="error-message">{{.error}}</div></p>
+
+                {{if eq .model.Rule.IsSystem false}}
+                <div class="button-group">
+                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save"></wa-icon> {{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+                    <wa-button variant="default" href="../wafrules" outline><wa-icon name="arrow-left"></wa-icon> Cancel</wa-button>
+
+                    {{if eq $.action "edit"}}
+                        <span class="right">
+                            <wa-button href="../wafrules/delete/{{.model.Rule.ID}}" variant="danger" outline><wa-icon name="xmark"></wa-icon> Delete</wa-button>
+                        </span>
+                    {{end}}
+                </div> 
+                {{end}}                   
+        </div>
+    </form>
+
+    <style>
+        .hidden {
+            display: none
+        }
+    </style>
+    
+
+{{template "template-end.html" .}}

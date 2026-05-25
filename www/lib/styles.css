@@ -1538,6 +1538,18 @@ body[data-page^='/tokens/'] .table-wrapper td:first-child code {
     flex: 1;                   
 }
 
+.form-group wl-textarea {
+    width: 100%;
+    flex: 1;                   
+}
+
+.form-group wl-input {
+    width: 100%;
+    flex: 1;                   
+}
+
+
+
 
 .active-section {
   font-weight: bold !important;;

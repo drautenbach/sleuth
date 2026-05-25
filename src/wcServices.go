@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sleuth/internal/db"
 	"strconv"
+	"strings"
 	"time"
 
 	"sort"
@@ -16,10 +17,13 @@ import (
 )
 
 type wcServices struct {
+	portal *Portal
 }
 
 func wcServicesInit(p *Portal) *wcServices {
-	dc := &wcServices{}
+	s := &wcServices{
+		portal: p,
+	}
 
 	/**** Categories ****/
 
@@ -431,7 +435,7 @@ func wcServicesInit(p *Portal) *wcServices {
 		})
 	})
 
-	/**** Profiles ****/
+	/**** DNS Profiles ****/
 
 	type TypeStruct struct {
 		Value int
@@ -611,7 +615,12 @@ func wcServicesInit(p *Portal) *wcServices {
 			"action": "create",
 			"title":  "New Reverse Proxy",
 			"model": gin.H{
-				"Configuration": make(map[string]interface{}),
+				"Configuration": &db.HttpProxy{
+					WAFConfig: "Default",
+					SSL:       true,
+					Enabled:   true,
+				},
+				"WAFConfigurations": p.db.GetWAFConfigurations(),
 			},
 		})
 	})
@@ -619,7 +628,10 @@ func wcServicesInit(p *Portal) *wcServices {
 	p.server.router.POST("/services/httpproxies/new", func(c *gin.Context) {
 		var config = &db.HttpProxy{
 			DomainName: c.PostForm("DomainName"),
-			Enabled:    true,
+			SSL:        c.PostForm("SSL") == "on",
+			URL:        c.PostForm("URL"),
+			WAFConfig:  c.PostForm("WAFConfig"),
+			Enabled:    c.PostForm("Enabled") == "on",
 		}
 		err := p.db.CreateHTTPProxyConfiguration(config)
 		if err == nil {
@@ -644,7 +656,8 @@ func wcServicesInit(p *Portal) *wcServices {
 			"action": "edit",
 			"title":  "Edit Reverse Proxy",
 			"model": gin.H{
-				"Configuration": configuration,
+				"Configuration":     configuration,
+				"WAFConfigurations": p.db.GetWAFConfigurations(),
 			},
 		})
 	})
@@ -659,6 +672,7 @@ func wcServicesInit(p *Portal) *wcServices {
 			if err == nil {
 				configuration.URL = c.PostForm("URL")
 				configuration.SSL = c.PostForm("SSL") == "on"
+				configuration.WAFConfig = c.PostForm("WAFConfig")
 				configuration.Enabled = c.PostForm("Enabled") == "on"
 				err = p.db.UpdateHTTPProxyConfiguration(configuration)
 			}
@@ -674,7 +688,8 @@ func wcServicesInit(p *Portal) *wcServices {
 				"title":  "Edit Reverse Proxy",
 				"error":  err.Error(),
 				"model": gin.H{
-					"Configuration": configuration,
+					"Configuration":     configuration,
+					"WAFConfigurations": p.db.GetWAFConfigurations(),
 				},
 			})
 		}
@@ -684,7 +699,7 @@ func wcServicesInit(p *Portal) *wcServices {
 		configuration := p.db.GetHTTPProxyConfiguration(c.Param("domainname"))
 		p.server.HTML(c, "services_httpproxy_delete", gin.H{
 			"action": "delete",
-			"title":  "Delete DNS Configuration",
+			"title":  "Delete HTTP Proxy",
 			"model": gin.H{
 				"Configuration": configuration,
 			},
@@ -709,5 +724,274 @@ func wcServicesInit(p *Portal) *wcServices {
 		}
 	})
 
-	return dc
+	/**** WAF Rules ****/
+
+	p.server.router.GET("/services/wafrules", func(c *gin.Context) {
+		rules := p.db.GetWafRules()
+
+		sort.Slice(rules, func(i, j int) bool {
+			return rules[i].ID < rules[j].ID
+		})
+
+		p.server.HTML(c, "services_wafrules", gin.H{
+			"title": "WAF Rules",
+			"model": gin.H{
+				"Rules": rules,
+			},
+		})
+	})
+
+	p.server.router.GET("/services/wafrules/new", func(c *gin.Context) {
+		p.server.HTML(c, "services_wafrule", gin.H{
+			"action": "create",
+			"title":  "New WAF Rule",
+			"model": gin.H{
+				"Rule": &db.WafRule{IsSystem: false},
+			},
+		})
+	})
+
+	p.server.router.POST("/services/wafrules/new", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Request.FormValue("ID"), 10, 32)
+		var rule = &db.WafRule{
+			ID:       int(id),
+			Action:   c.Request.FormValue("Action"),
+			Message:  c.Request.FormValue("Message"),
+			Tags:     strings.Split(c.Request.FormValue("Tags"), ","),
+			Phase:    c.Request.FormValue("Phase"),
+			File:     c.Request.FormValue("File"),
+			Raw:      c.Request.FormValue("Raw"),
+			IsSystem: false,
+		}
+		if err != nil {
+			err = p.db.CreateWafRule(rule)
+		}
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/services/wafrule")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "services_wafrule", gin.H{
+				"action": "create",
+				"title":  "New WAF Rule",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Rule": rule,
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/services/wafrule/:id", func(c *gin.Context) {
+		id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
+		rule := p.db.GetWafRule(int(id))
+		p.server.HTML(c, "services_wafrule", gin.H{
+			"action": "edit",
+			"title":  "Edit WAF Rule",
+			"model": gin.H{
+				"Rule": rule,
+			},
+		})
+	})
+
+	p.server.router.POST("/services/wafrule/:id", func(c *gin.Context) {
+		id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
+		var rule = p.db.GetWafRule(int(id))
+		var err error
+		if rule == nil {
+			err = fmt.Errorf("WAF Rule %s does not exist", c.Param("id"))
+		} else if rule.IsSystem {
+			err = fmt.Errorf("Cannot edit system rule")
+		} else {
+			rule.Action = c.Request.FormValue("Action")
+			rule.Message = c.Request.FormValue("Message")
+			rule.Tags = strings.Split(c.Request.FormValue("Tags"), ",")
+			rule.Phase = c.Request.FormValue("Phase")
+			rule.File = c.Request.FormValue("File")
+			rule.Raw = c.Request.FormValue("Raw")
+			err = p.db.UpdateWafRule(rule)
+		}
+
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/services/wafrules")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "services_wafrule", gin.H{
+				"action": "edit",
+				"title":  "Edit WAF Rule",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Rule": rule,
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/services/wafrules/delete/:id", func(c *gin.Context) {
+		id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
+		rule := p.db.GetWafRule(int(id))
+		var err error
+		if rule.IsSystem {
+			err = fmt.Errorf("Cannot delete system WAF rule")
+		}
+		p.server.HTML(c, "services_wafrule_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete WAF Rule",
+			"model": gin.H{
+				"Rule":  rule,
+				"Error": err,
+			},
+		})
+	})
+
+	p.server.router.POST("/services/wafrules/delete/:id", func(c *gin.Context) {
+		id, _ := strconv.ParseInt(c.Param("id"), 10, 32)
+		rule := p.db.GetWafRule(int(id))
+		var err error
+		if rule.IsSystem {
+			err = fmt.Errorf("Cannot delete system WAF rule")
+		} else {
+			err = p.db.DeleteWafRule(int(id))
+		}
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/services/wafrules")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "services_wafrule_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete WAF Rule",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Rule": rule,
+				},
+			})
+		}
+	})
+
+	/******************* WAF Congiruations 	 **************************************/
+	p.server.router.GET("/services/wafconfigurations", func(c *gin.Context) {
+		configurations := p.db.GetWAFConfigurations()
+
+		sort.Slice(configurations, func(i, j int) bool {
+			return configurations[i].Name < configurations[j].Name
+		})
+
+		p.server.HTML(c, "services_wafconfigurations", gin.H{
+			"model": gin.H{
+				"Configurations": configurations,
+			},
+		})
+	})
+
+	p.server.router.GET("/services/wafconfigurations/new", func(c *gin.Context) {
+		p.server.HTML(c, "services_wafconfiguration", gin.H{
+			"action": "create",
+			"title":  "New WAF Configuration",
+			"model": gin.H{
+				"Configuration": &db.WAFConfiguration{
+					Enabled: true,
+				},
+				"Types": types,
+			},
+		})
+	})
+
+	p.server.router.POST("/services/wafconfigurations/new", func(c *gin.Context) {
+
+		var configuration = &db.WAFConfiguration{
+			Name:    c.PostForm("Name"),
+			Raw:     c.PostForm("Raw"),
+			Enabled: c.PostForm("Enabled") == "on",
+		}
+
+		err := p.db.CreateWAFConfiguration(configuration)
+
+		if err == nil {
+			p.httpproxy.ApplyConfiguration()
+			c.Redirect(http.StatusSeeOther, "/services/wafconfigurations")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "services_wafconfiguration", gin.H{
+				"action": "create",
+				"title":  "New WAF Configuration",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Configuration": configuration,
+					"Types":         types,
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/services/wafconfiguration/:name", func(c *gin.Context) {
+		configuration := p.db.GetWAFConfiguration(c.Param("name"))
+		p.server.HTML(c, "services_wafconfiguration", gin.H{
+			"action": "edit",
+			"title":  "Edit WAF Configuration",
+			"model": gin.H{
+				"Configuration": configuration,
+				"Types":         types,
+			},
+		})
+	})
+
+	p.server.router.POST("/services/wafconfiguration/:name", func(c *gin.Context) {
+		var configuration = p.db.GetWAFConfiguration(c.Param("name"))
+		var err error
+		if configuration == nil {
+			err = fmt.Errorf("WAF Configuration %s does not exist", c.Param("name"))
+		} else {
+			configuration.Name = c.PostForm("Name")
+			configuration.Raw = c.PostForm("Raw")
+			configuration.Enabled = c.PostForm("Enabled") == "on"
+			err = p.db.UpdateWAFConfiguration(configuration)
+		}
+
+		if err == nil {
+			p.httpproxy.ApplyConfiguration()
+			c.Redirect(http.StatusSeeOther, "/services/wafconfigurations")
+			c.Abort()
+		} else {
+			p.server.HTML(c, "services_wafconfiguration", gin.H{
+				"action": "edit",
+				"title":  "Edit WAF Configuration",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Configuration": configuration,
+					"Types":         types,
+				},
+			})
+		}
+	})
+
+	p.server.router.GET("/services/wafconfigurations/delete/:name", func(c *gin.Context) {
+		configuration := p.db.GetWAFConfiguration(c.Param("name"))
+		p.server.HTML(c, "services_wafconfiguration_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete WAF Configuration",
+			"model": gin.H{
+				"Configuration": configuration,
+			},
+		})
+	})
+
+	p.server.router.POST("/services/wafconfigurations/delete/:name", func(c *gin.Context) {
+		err := p.db.DeleteWAFConfiguration(c.Param("name"))
+		if err == nil {
+			p.httpproxy.ApplyConfiguration()
+			c.Redirect(http.StatusSeeOther, "/services/wafconfigurations")
+			c.Abort()
+		} else {
+			configuration := p.db.GetWAFConfiguration(c.Param("name"))
+			p.server.HTML(c, "services_wafconfiguration_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete WAF Configuration",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Configuration": configuration,
+				},
+			})
+		}
+	})
+
+	return s
 }

@@ -16,6 +16,7 @@
                 <th>Domain Name</th>
                 <th>SSL</th>
                 <th>URL</th>
+                <td>WAF Config</td>                
                 <th>Enabled</th>
             </tr>
         </thead>
@@ -26,6 +27,7 @@
                 <td>{{.DomainName}}</td>
                 <td><wa-switch class="disabled" {{if .SSL}}checked{{end}}></wa-switch></td>   
                 <td>{{.URL}}</td>
+                <td>{{.WAFConfig}}</td>                
                 <td><wa-switch class="disabled" {{if .Enabled}}checked{{end}}></wa-switch></td>   
             </tr>
             {{end}}

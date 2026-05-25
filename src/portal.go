@@ -48,7 +48,7 @@ type Portal struct {
 
 func InitPortal() *Portal {
 	p := &Portal{
-		db:      db.InitDB("/tmp/sleuth/data/"),
+		db:      db.InitDB("./.data/"),
 		network: network.InitNetwork(),
 		fw:      firewall.LoadFirewallManager(),
 		wc:      WebControllers{},

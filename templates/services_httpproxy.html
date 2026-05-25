@@ -16,6 +16,15 @@
                     <input type="text" id="URL" name="URL" value="{{.model.Configuration.URL}}" required />
                 </div>
                 <div class="form-group">
+                    <label for="WAFConfig">WAF Configuration</label>
+                      <wa-select name="WAFConfig" value="{{.model.Configuration.WAFConfig}}">
+                            <wa-option value="">None</wa-option>
+                        {{range .model.WAFConfigurations}}
+                            <wa-option value="{{.Name}}">{{.Name}}</wa-option>
+                        {{end}}
+                    <wa-select>
+                </div>
+                <div class="form-group">
                     <label for="Enabled">Enabled</label>
                     <wa-switch id="Enabled" name="Enabled" {{if .model.Configuration.Enabled}}checked{{end}}>Enabled</wa-switch>
                 </div>

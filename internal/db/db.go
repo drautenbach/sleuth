@@ -1165,3 +1165,47 @@ func (d *Db) UpdateHTTPProxyConfiguration(p *HttpProxy) error {
 func (d *Db) DeleteHTTPProxyConfiguration(domain string) error {
 	return delete(d, fmt.Sprintf("HttpProxy:%s", domain))
 }
+
+/***************** HTTP Proxy **************************/
+
+func (d *Db) GetWafRule(id int) *WafRule {
+	return get[WafRule](d, fmt.Sprintf("WafRule:%d", id))
+}
+
+func (d *Db) GetWafRules() []WafRule {
+	return getAll[WafRule](d, "WafRule:")
+}
+
+func (d *Db) CreateWafRule(wr *WafRule) error {
+	return create(d, fmt.Sprintf("WafRule:%d", wr.ID), wr, 0)
+}
+
+func (d *Db) UpdateWafRule(wr *WafRule) error {
+	return update(d, fmt.Sprintf("WafRule:%d", wr.ID), wr)
+}
+
+func (d *Db) DeleteWafRule(id int) error {
+	return delete(d, fmt.Sprintf("WafRule:%d", id))
+}
+
+/***************** WAF Config - Profile **************************/
+
+func (d *Db) GetWAFConfiguration(profileid string) *WAFConfiguration {
+	return get[WAFConfiguration](d, fmt.Sprintf("WAFConfiguration:%s", profileid))
+}
+
+func (d *Db) GetWAFConfigurations() []WAFConfiguration {
+	return getAll[WAFConfiguration](d, "WAFConfiguration:")
+}
+
+func (d *Db) CreateWAFConfiguration(p *WAFConfiguration) error {
+	return create(d, fmt.Sprintf("WAFConfiguration:%s", p.Name), p, 0)
+}
+
+func (d *Db) UpdateWAFConfiguration(p *WAFConfiguration) error {
+	return update(d, fmt.Sprintf("WAFConfiguration:%s", p.Name), p)
+}
+
+func (d *Db) DeleteWAFConfiguration(profileid string) error {
+	return delete(d, fmt.Sprintf("WAFConfiguration:%s", profileid))
+}
