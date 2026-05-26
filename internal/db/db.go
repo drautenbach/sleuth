@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/miekg/dns"
 )
 
 type Db struct {
@@ -489,23 +488,17 @@ func (d *Db) DeleteDevice(macAdress string) error {
 	})
 }
 
-/****   fwdrules     *****/
+/****   DNS fwdrules     *****/
 
-func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
+func (d *Db) CreateDNSSession(r *constants.DNSSession) error {
 	return d.dbInstance.Update(func(txn *badger.Txn) error {
-		dnsKey := d.dnsKey(r.ClientIP, r.Hostname, r.QType)
-		fwdKey := d.fwdKey(r.ClientIP, r.DestIPOffset, r.QType)
+		dnsKey := d.dnsFwdKey(r.ClientIP, r.Hostname, r.QType)
 		dns, err := txn.Get([]byte(dnsKey))
 		if dns != nil {
 			return fmt.Errorf("dns rule %s:%d already exists", r.Hostname, r.QType)
 		}
 
-		fwd, err := txn.Get([]byte(fwdKey))
-		if fwd != nil {
-			return fmt.Errorf("forward rule %s:%s:%d already exists", r.ClientIP, r.DestIP, r.QType)
-		}
-
-		r.CacheExpiry = expires
+		r.LastEvent = time.Now()
 		val, err := json.Marshal(r)
 		if err != nil {
 			return err
@@ -515,139 +508,76 @@ func (d *Db) CreateFwdRule(r *constants.FwdRule, expires time.Time) error {
 		if err != nil {
 			panic(err)
 		}
-		err = txn.SetEntry(badger.NewEntry([]byte(fwdKey), val))
-		if err != nil {
-			panic(err)
-		}
 		return nil
 	})
 }
 
-func (d *Db) fwdKey(clientIP string, destIPOffset uint16, qtype uint16) string {
-	return fmt.Sprintf("fwd:%s:%d:%06d", clientIP, qtype, destIPOffset)
-}
-
-func (d *Db) dnsKey(clientIP string, hostname string, qtype uint16) string {
+func (d *Db) dnsFwdKey(clientIP string, hostname string, qtype uint16) string {
 	return fmt.Sprintf("dns:%s:%d:%s", clientIP, qtype, hostname)
 }
 
-func (d *Db) DeleteFwdRule(r *constants.FwdRule) error {
-	return d.dbInstance.Update(func(txn *badger.Txn) error {
-		dnsKey := d.dnsKey(r.ClientIP, r.Hostname, r.QType)
-		fwdKey := d.fwdKey(r.ClientIP, r.DestIPOffset, r.QType)
-
-		item, err := txn.Get([]byte(dnsKey))
-		if err != nil {
-			return err
-		}
-		if item != nil {
-			err = txn.Delete([]byte(dnsKey))
-			if err != nil {
-				return err
-			}
-		}
-
-		item, err = txn.Get([]byte(fwdKey))
-		if err != nil {
-			return err
-		}
-		if item != nil {
-			err = txn.Delete([]byte(fwdKey))
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
+func (d *Db) DeleteDNSSession(r *constants.DNSSession) error {
+	return delete(d, d.dnsFwdKey(r.ClientIP, r.Hostname, r.QType))
 }
 
-func (d *Db) ExtendFwdRule(r *constants.FwdRule, expires time.Time) error {
-	err := d.DeleteFwdRule(r)
-	if err != nil {
-		return err
-	}
-	return d.CreateFwdRule(r, expires)
+func (d *Db) UpdateDNSSession(r *constants.DNSSession) error {
+	return update(d, d.dnsFwdKey(r.ClientIP, r.Hostname, r.QType), r)
 }
 
-func (d *Db) getFwdRuleByKey(key string) *constants.FwdRule {
-	var up constants.FwdRule
-	found := false
-	err := d.dbInstance.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(key))
-		if err != nil {
-			if err == badger.ErrKeyNotFound {
-				// not found, return nil error and let caller receive nil
-				return nil
-			}
-			return err
-		}
-
-		if err := item.Value(func(val []byte) error {
-			return json.Unmarshal(val, &up)
-		}); err != nil {
-			return err
-		}
-		found = true
-		return nil
-	})
-
-	if err != nil {
-		panic(err)
-	}
-	if !found {
-		return nil
-	}
-	return &up
+func (d *Db) GetDNSSession(clientIP string, hostname string, qtype uint16) *constants.DNSSession {
+	return get[constants.DNSSession](d, d.dnsFwdKey(clientIP, hostname, qtype))
 }
 
-func (d *Db) GetFwdRuleByHostname(clientIP string, hostname string, qtype uint16) *constants.FwdRule {
-	return d.getFwdRuleByKey(d.dnsKey(clientIP, hostname, qtype))
+func (d *Db) GetDNSSessionsForClient(clientIP string) []constants.DNSSession {
+	return getAll[constants.DNSSession](d, fmt.Sprintf("dns:%s:", clientIP))
 }
 
-func (d *Db) GetFwdRulesByClient(clientIP string) []constants.FwdRule {
-	return d.getFwdRulesByKey(fmt.Sprintf("fwd:%s:", clientIP))
+func (d *Db) GetDNSSessionsForClientType(clientIP string, qtype uint16) []constants.DNSSession {
+	return getAll[constants.DNSSession](d, fmt.Sprintf("dns:%s:%d:", clientIP, qtype))
 }
 
-func (d *Db) GetFwdRulesByClientType(clientIP string, qtype uint16) []constants.FwdRule {
-	return d.getFwdRulesByKey(fmt.Sprintf("fwd:%s:%d:", clientIP, qtype))
+func (d *Db) GetDNSSessions() []constants.DNSSession {
+	return getAll[constants.DNSSession](d, "dns:")
 }
 
-func (d *Db) GetFwdRules() []constants.FwdRule {
-	return d.getFwdRulesByKey("fwd:")
+func (d *Db) DNSSessions() []constants.DNSSession {
+	return getAll[constants.DNSSession](d, "dns:")
 }
 
-func (d *Db) getFwdRulesByKey(key string) []constants.FwdRule {
-	prefix := []byte(key)
-	var rules []constants.FwdRule
-
-	err := d.dbInstance.View(func(txn *badger.Txn) error {
+func (d *Db) FlushDNSSessions(clientIP string) error {
+	keyprefix := fmt.Sprintf("dns:%s:", clientIP)
+	prefix := []byte(keyprefix)
+	err := d.dbInstance.Update(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.Prefix = prefix
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
+		var err error = nil
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			item := it.Item()
-			//k := item.Key()
-			v, err := item.ValueCopy(nil) // Use ValueCopy if you need to use the value outside the transaction
 			if err != nil {
-				return err
+				err = txn.Delete(it.Item().Key())
 			}
-			var up constants.FwdRule
-			if err := json.Unmarshal(v, &up); err != nil {
-				return err
-			}
-			rules = append(rules, up)
-			//log.Infof("Key: %s, Value: %s\n", k, v)
 		}
-		return nil
+		return err
 	})
+	return err
+}
 
-	if err != nil {
-		panic(err)
-	}
-	return rules
+func (d *Db) CreateReverseDNS(clientIP string, qtype uint16, rdns *constants.ReverseDNS) error {
+	return create(d, fmt.Sprintf("rev:%s:%d:%d", clientIP, qtype, rdns.DestIPOffset), rdns, 0)
+}
+
+func (d *Db) DeleteReverseDNS(clientIP string, qtype uint16, DestIPOffset uint16) error {
+	return delete(d, fmt.Sprintf("rev:%s:%d:%d", clientIP, qtype, DestIPOffset))
+}
+
+/*func (d *Db) GetReverseDNS() []constants.ReverseDNS {
+	return getAll[constants.ReverseDNS](d, fmt.Sprintf("rev:"))
+}*/
+
+func (d *Db) GetReverseDNSByClientType(clientIP string, qtype uint16) []constants.ReverseDNS {
+	return getAll[constants.ReverseDNS](d, fmt.Sprintf("rev:%s:%d", clientIP, qtype))
 }
 
 /*             Session                            */
@@ -661,7 +591,7 @@ func (d *Db) GetSession(IP string) *Session {
 }
 
 func (d *Db) CreateSession(s *Session) error {
-	return create[Session](d, fmt.Sprintf("session:%s", s.IP), s, time.Minute*15)
+	return create(d, fmt.Sprintf("session:%s", s.IP), s, time.Minute*15)
 }
 
 func (d *Db) DeleteSession(IP string) error {
@@ -983,10 +913,15 @@ func (d *Db) RemoveCategoryFromDnsHostRules(categoryId string) error {
 	return err
 }
 
-/***************** DNS Cache **************************/
+/***************** DNS Cache **************************
 
 func (d *Db) CreateDNSCacheRecord(clientIP string, name string, qtype uint16, ttl uint32, rr *[]dns.RR) error {
-	return create(d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype), rr, time.Second*time.Duration(ttl))
+	strs := make([]string, len(*rr))
+	for i, r := range *rr {
+		strs[i] = r.String()
+	}
+
+	return create(d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype), &strs, time.Second*time.Duration(ttl))
 }
 
 func (d *Db) DeleteDNSCacheRecord(clientIP string, name string, qtype uint16, rr *[]dns.RR) error {
@@ -994,7 +929,16 @@ func (d *Db) DeleteDNSCacheRecord(clientIP string, name string, qtype uint16, rr
 }
 
 func (d *Db) GetDNSCacheRecord(clientIP string, name string, qtype uint16) *[]dns.RR {
-	return get[[]dns.RR](d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype))
+	strs := get[[]string](d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype))
+	if strs == nil {
+		return nil
+	}
+	res := make([]dns.RR, len(*strs))
+	for i, r := range *strs {
+
+		res[i], _ = dns.NewRR(r)
+	}
+	return &res
 }
 
 func (d *Db) FlushDNSCacheRecords(clientIP string) error {
@@ -1015,7 +959,7 @@ func (d *Db) FlushDNSCacheRecords(clientIP string) error {
 		return err
 	})
 	return err
-}
+} */
 
 /***************** DNS Config - Profile **************************/
 

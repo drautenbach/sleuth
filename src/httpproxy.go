@@ -172,8 +172,7 @@ func (p *HttpProxy) WAFHandler(next http.Handler) http.Handler {
 
 			host := r.RemoteAddr
 			if h, _, err := net.SplitHostPort(host); err == nil {
-				s := p.portal.db.GetSession(h)
-				if s != nil {
+				if h == "127.0.0.1" || p.portal.db.GetSession(h) != nil {
 					next.ServeHTTP(w, r)
 					return
 				}

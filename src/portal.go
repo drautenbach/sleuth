@@ -86,10 +86,10 @@ func (p *Portal) logout(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/")
 	} else {
 		p.security.ClearSession(clientIP(c.Request))
-		allrules := p.db.GetFwdRulesByClient(clientIP(c.Request))
+		allrules := p.db.GetDNSSessionsForClient(clientIP(c.Request))
 		for i := range allrules {
 			if allrules[i].ReasonCode == 0 {
-				p.dns.ReevaluateDomainAccess(&allrules[i])
+				p.dns.ReevaluateAccess(&allrules[i])
 			}
 		}
 		c.Header("connection", "close")
@@ -109,7 +109,7 @@ func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
 	if loc != nil {
 		host = loc.Host
 		if loc.Host != ip {
-			fwr := p.db.GetFwdRuleByHostname(ip, loc.Host+".", 1)
+			fwr := p.db.GetDNSSession(ip, loc.Host+".", 1)
 			if fwr != nil {
 				is_portal = false
 				if host == "my.session" {
@@ -122,7 +122,8 @@ func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
 					if fwr.ReasonCode == 0 {
 						page = "portal_valid"
 					} else if fwr.ReasonCode == 1 && session != "" {
-						p.dns.ReevaluateDomainAccess(fwr)
+						p.dns.ReevaluateAccess(fwr)
+
 					}
 					c.Header("connection", "close")
 				}
@@ -151,7 +152,7 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 	if loc != nil {
 		host = loc.Host
 		if loc.Host != ip {
-			fwr := p.db.GetFwdRuleByHostname(ip, loc.Host+".", 1)
+			fwr := p.db.GetDNSSession(ip, loc.Host+".", 1)
 			if fwr != nil {
 				rt.isAdminPortal = false
 				rt.sessionUser, _ = p.security.GetSession(ip)
@@ -170,7 +171,7 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 					if fwr.ReasonCode == 0 {
 						rt.serveTemplate = "portal_valid"
 					} else if fwr.ReasonCode == 1 && rt.sessionUser != "" {
-						p.dns.ReevaluateDomainAccess(fwr)
+						p.dns.ReevaluateAccess(fwr)
 					}
 					c.Header("connection", "close")
 				}
@@ -302,10 +303,10 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 					} else {
 						ip := clientIP(c.Request)
 						p.security.SetSession(ip, u.UserName, "", 0)
-						allrules := p.db.GetFwdRulesByClient(ip)
+						allrules := p.db.GetDNSSessionsForClient(ip)
 						for i := range allrules {
 							if allrules[i].ReasonCode != 0 {
-								p.dns.ReevaluateDomainAccess(&allrules[i])
+								p.dns.ReevaluateAccess(&allrules[i])
 							}
 						}
 						c.Header("connection", "close")

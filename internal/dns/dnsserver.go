@@ -36,66 +36,154 @@ func (s *DnsServer) parseQuery(source net.Addr, interfaceAddress string, m *dns.
 	}
 }
 
-func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) ([]dns.RR, error) {
-	if s.db != nil {
+func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) (*constants.DNSSession, error) {
+	if s.db == nil {
 		return nil, errors.New("Db not refereced, cache not availabe")
 	}
-	records := s.db.GetDNSCacheRecord(clientIP, name, qtype)
-	if records == nil {
+	cache := s.db.GetDNSSession(clientIP, name, qtype)
+	if cache == nil {
 		return nil, fmt.Errorf("%s %s not found in cache", name, getQueryTypeText(qtype))
 	}
-	return *records, nil
+	return cache, nil
 }
 
-func (s *DnsServer) processDnsResponse(name string, qtype uint16, arr []dns.RR, ses security.SessionInfo, if_ip string) []dns.RR {
-	resp := make(map[uint16][]dns.RR)
-	ttl := uint32(32767)
-	for i := range arr {
-		header := arr[i].Header()
-		if header.Ttl < ttl {
-			ttl = header.Ttl
+func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.RR, cache *constants.DNSSession, ses security.SessionInfo, if_ip string) []dns.RR {
+	ttl := uint32(32768)
+	cached := cache != nil
+	if upstream != nil && cache != nil {
+		a := make(map[string]constants.DNS_IP_Record)
+		aaaa := make(map[string]constants.DNS_IP_Record)
+		cache.DNSResponse.Raw = make([]string, 0)
+		for _, r := range *upstream {
+			ttl = min(ttl, r.Header().Ttl)
+			switch r.Header().Rrtype {
+			case dns.TypeA:
+				a[r.(*dns.A).A.String()] = constants.DNS_IP_Record{
+					Name:  r.Header().Name,
+					TTL:   r.Header().Ttl,
+					Class: dns.ClassToString[r.Header().Class],
+					IP:    r.(*dns.A).A.String(),
+				}
+			case dns.TypeAAAA:
+				aaaa[r.(*dns.AAAA).AAAA.String()] = constants.DNS_IP_Record{
+					Name:  r.Header().Name,
+					TTL:   r.Header().Ttl,
+					Class: dns.ClassToString[r.Header().Class],
+					IP:    r.(*dns.AAAA).AAAA.String(),
+				}
+			default:
+				cache.DNSResponse.Raw = append(cache.DNSResponse.Raw, r.String())
+			}
 		}
-		switch header.Rrtype {
-		case dns.TypeA:
-			{
-				if resp[header.Rrtype] == nil {
-					ttl := header.Ttl
-					qtype := arr[i].Header().Rrtype
-					allocatedIP, err := s.fw.AllocateIPv4(ses.ClientIP, name, qtype, arr[i].(*dns.A).A.String(), ttl, ses.RejectReason, if_ip)
-					if err != nil {
-						fmt.Println(fmt.Errorf("Error allocating IP: %v", err))
-					} else {
-						newRR, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", header.Name, 1 /*ttl*/, getQueryTypeText(header.Rrtype), allocatedIP))
-						resp[header.Rrtype] = make([]dns.RR, 1)
-						resp[header.Rrtype][0] = newRR
+
+		matched := false
+		if cache.DNSResponse.A != nil {
+			_, matched = a[cache.DNSResponse.A.IP]
+		}
+		if !matched {
+			if cache.DNSResponse.A == nil {
+				cache.DNSResponse.A = nil
+			} else {
+				for _, _a := range a {
+					cache.DNSResponse.A = &_a
+					break
+				}
+			}
+		}
+		matched = false
+		if cache.DNSResponse.AAAA != nil {
+			_, matched = aaaa[cache.DNSResponse.AAAA.IP]
+		}
+		if !matched {
+			if cache.DNSResponse.AAAA == nil {
+				cache.DNSResponse.AAAA = nil
+			} else {
+				for _, _aaaa := range aaaa {
+					cache.DNSResponse.A = &_aaaa
+					break
+				}
+			}
+		}
+		cache.ReasonCode = ses.RejectReason
+		cache.DNSExpiry = time.Now().Add(time.Duration(ttl) * time.Second)
+		cache.SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
+
+	} else if cache == nil {
+		cache = &constants.DNSSession{
+			Since:         time.Now(),
+			ClientIP:      ses.ClientIP,
+			InterfaceIP:   if_ip,
+			Hostname:      name,
+			QType:         qtype,
+			LastEvent:     time.Now(),
+			BytesUsed:     0,
+			SessionExpiry: time.Now().Add(time.Duration(330) * time.Second),
+			ReasonCode:    ses.RejectReason,
+			DNSResponse: constants.DNSResponse{
+				Raw: make([]string, 0),
+			},
+		}
+		for _, r := range *upstream {
+			ttl = min(ttl, r.Header().Ttl)
+			switch r.Header().Rrtype {
+			case dns.TypeA:
+				if cache.DNSResponse.A == nil {
+					cache.DNSResponse.A = &constants.DNS_IP_Record{
+						Name:  r.Header().Name,
+						TTL:   r.Header().Ttl,
+						Class: dns.ClassToString[r.Header().Class],
+						IP:    r.(*dns.A).A.String(),
 					}
 				}
-			}
-		case dns.TypeAAAA:
-			fmt.Println(fmt.Errorf("AAAA not yet supported for: %s", header.Name))
-		case dns.TypeCNAME:
-			if resp[header.Rrtype] == nil {
-				resp[header.Rrtype] = make([]dns.RR, 0)
-			}
-			resp[header.Rrtype] = append(resp[header.Rrtype], arr[i])
-		default:
-			if ses.RejectReason == 0 {
-				if resp[header.Rrtype] == nil {
-					resp[header.Rrtype] = make([]dns.RR, 0)
+			case dns.TypeAAAA:
+				if cache.DNSResponse.AAAA == nil {
+					cache.DNSResponse.AAAA = &constants.DNS_IP_Record{
+						Name:  r.Header().Name,
+						TTL:   r.Header().Ttl,
+						Class: dns.ClassToString[r.Header().Class],
+						IP:    r.(*dns.AAAA).AAAA.String(),
+					}
 				}
-				resp[header.Rrtype] = append(resp[header.Rrtype], arr[i])
+			default:
+				cache.DNSResponse.Raw = append(cache.DNSResponse.Raw, r.String())
 			}
 		}
+		cache.DNSExpiry = time.Now().Add(time.Duration(ttl) * time.Second)
 	}
 
-	values := make([]dns.RR, 0, len(resp))
-	for _, v := range resp {
-		for _, w := range v {
-			values = append(values, w)
+	if upstream != nil {
+		s.fw.Allocate(*cache, if_ip)
+	}
+
+	if cached {
+		s.db.UpdateDNSSession(cache)
+	} else {
+		s.db.CreateDNSSession(cache)
+	}
+
+	resp := make([]dns.RR, 0)
+	for _, str := range cache.DNSResponse.Raw {
+		r, err := dns.NewRR(str)
+		if err == nil {
+			resp = append(resp, r)
 		}
 	}
-	s.db.CreateDNSCacheRecord(ses.ClientIP, name, qtype, ttl, &values)
-	return values
+	if cache.DNSResponse.A != nil {
+		ip := cache.DNSResponse.A.IP
+		if cache.DNSResponse.A.AllocatedIP != "" {
+			ip = cache.DNSResponse.A.AllocatedIP
+		}
+		resp = append(resp, &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   cache.DNSResponse.A.Name,
+				Class:  dns.StringToClass[cache.DNSResponse.A.Class],
+				Ttl:    1,
+				Rrtype: dns.TypeA,
+			},
+			A: net.ParseIP(ip).To4(),
+		})
+	}
+	return resp
 }
 
 func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip string) ([]dns.RR, error) {
@@ -152,24 +240,25 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 		logQueryResult(source, name, qtype, "resolved as local address")
 		return arr, dns.RcodeSuccess
 	}
-	arr, err = s.queryCache(source, name, qtype)
-	if err == nil {
-		logQueryResult(source, name, qtype, "resolved from cache")
-		return arr, dns.RcodeSuccess
-	}
-
 	ses, _ := s.security.GetSessionInfo(source)
+	cache, err := s.queryCache(source, name, qtype)
+	if err == nil && cache != nil {
+		if time.Until(cache.DNSExpiry) > 0 {
+			logQueryResult(source, name, qtype, "resolved from cache")
+			return s.processResponse(name, qtype, nil, cache, ses, if_ip), dns.RcodeSuccess
+		}
+	}
 	if qtype == 1 && name == "my.session." { // special case to allow logout
 		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60, "A", if_ip))
 		arr = append(arr, rr)
-		return s.processDnsResponse(name, qtype, arr, ses, if_ip), dns.RcodeSuccess
+		return s.processResponse(name, qtype, &arr, cache, ses, if_ip), dns.RcodeSuccess
 	}
 
-	arr, err = queryBlacklist(name, qtype)
+	/*arr, err = queryBlacklist(name, qtype)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved as blacklisted name")
 		return arr, dns.RcodeNameError
-	}
+	}*/
 
 	m1 := new(dns.Msg)
 	m1.Id = dns.Id()
@@ -243,7 +332,7 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved via upstream")
-		return s.processDnsResponse(name, qtype, in.Answer, ses, if_ip), dns.RcodeSuccess
+		return s.processResponse(name, qtype, &in.Answer, cache, ses, if_ip), dns.RcodeSuccess
 	}
 
 	logQueryResult(source, name, qtype, "did not resolve")
@@ -323,20 +412,21 @@ func (s DnsServer) Start() {
 
 }
 
-func (s *DnsServer) ReevaluateDomainAccess(fwr *constants.FwdRule) error {
+func (s *DnsServer) ReevaluateAccess(fwr *constants.DNSSession) error {
 	_, newReason := s.security.VerifyDomainAccess(fwr.ClientIP, fwr.Hostname)
 	if newReason != fwr.ReasonCode {
 		if s.fw.IsActive() {
 			return s.fw.UpdateIPv4(fwr, newReason)
 		}
 		fwr.ReasonCode = newReason
-		return s.db.ExtendFwdRule(fwr, time.Now().Add(time.Duration(330)*time.Second))
+		fwr.SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
+		return s.db.UpdateDNSSession(fwr)
 	}
 	return nil
 }
 
 func (s *DnsServer) FlushCache(clientIP string) error {
-	return s.db.FlushDNSCacheRecords(clientIP)
+	return s.db.FlushDNSSessions(clientIP)
 }
 
 type pktinfoConn struct {

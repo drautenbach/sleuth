@@ -122,11 +122,15 @@ func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 	}
 
 	if ses == nil || user == nil {
-		settings := s.db.GetSettings()
-		if settings.Mode != db.ModeBlock {
+		switch s.settings.Mode {
+		case db.ModeAllow:
+			sessionInfo.Role = s.settings.DefaultRole
+			sessionInfo.RejectReason = constants.AccessAllowed
+		case db.ModeCaptive:
 			sessionInfo.RejectReason = constants.AccessBlockedNotAuthenticated
 		}
 		return sessionInfo, nil
+
 	}
 
 	sessionInfo.Username = user.UserName

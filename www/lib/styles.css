@@ -711,6 +711,7 @@ pre:hover .copy-code-button,
   overflow: auto;
   scrollbar-width: thin;
   transition: var(--docs-sidebar-transition-speed) translate ease-in-out;
+  background-color: lightgray;
 }
 
 #sidebar::-webkit-scrollbar {

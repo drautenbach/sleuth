@@ -7,6 +7,8 @@ import (
 	"net"
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
+	"sleuth/internal/log"
+	"sort"
 	"time"
 )
 
@@ -54,7 +56,21 @@ func (m *FirewallManager) SetActiveFirewall(firewall string) {
 		return
 	}
 
-	rules := m.db.GetFwdRules()
+	//rules := m.db.GetReverseDNS()
+	sessions := m.db.GetDNSSessions()
+	rules := make([]constants.FwdRule, 0)
+	for _, s := range sessions {
+		rule := constants.FwdRule{
+			ClientIP:    s.ClientIP,
+			InterfaceIP: s.InterfaceIP,
+			ReasonCode:  s.ReasonCode,
+		}
+		if s.DNSResponse.A != nil {
+			rule.TargetIP = s.DNSResponse.A.IP
+			rule.AllocatedIP = s.DNSResponse.A.AllocatedIP
+		}
+		rules = append(rules, rule)
+	}
 
 	if m.fw != nil {
 		m.fw.Close(rules)
@@ -79,12 +95,27 @@ func (m *FirewallManager) SetActiveFirewall(firewall string) {
 	}
 
 	if m.fw != nil {
-		for _, r := range rules {
-			if time.Now().After(r.CacheExpiry) || time.Now().After(r.DNSExpiry) {
-				m.db.DeleteFwdRule(&r)
+		rules := make([]constants.FwdRule, 0)
+		for _, s := range sessions {
+			if time.Now().After(s.SessionExpiry) {
+				if s.DNSResponse.A != nil {
+					m.db.DeleteReverseDNS(s.ClientIP, s.QType, uint16(OffsetFromIP4(s.DNSResponse.A.AllocatedIP)))
+				}
+				m.db.DeleteDNSSession(&s)
+			} else {
+				rule := constants.FwdRule{
+					ClientIP:    s.ClientIP,
+					InterfaceIP: s.InterfaceIP,
+					ReasonCode:  s.ReasonCode,
+				}
+				if s.DNSResponse.A != nil {
+					rule.TargetIP = s.DNSResponse.A.IP
+					rule.AllocatedIP = s.DNSResponse.A.AllocatedIP
+				}
+				rules = append(rules, rule)
 			}
 		}
-		m.fw.Init(m.db.GetFwdRules())
+		m.fw.Init(rules)
 	}
 }
 
@@ -113,86 +144,95 @@ func IP4fromOffset(offset uint16) string {
 	return intToIP4(ip + uint32(offset))
 }
 
-func (m *FirewallManager) AllocateIPv4(clientIP string, name string, qtype uint16, actualIP string, ttl uint32, reasoncode uint16, if_ip string) (string, error) {
-
-	if fr := m.db.GetFwdRuleByHostname(clientIP, name, qtype); fr != nil {
-		if fr.ReasonCode != reasoncode {
-			fr.ReasonCode = reasoncode
-			m.db.ExtendFwdRule(fr, time.Now().Add(time.Duration(330)*time.Second))
-		}
-		if m.fw != nil {
-			return fr.DestIP, nil
-		} else if reasoncode == 0 {
-			return fr.OrigIP, nil
-		} else {
-			return if_ip, nil
-		}
-	}
-
-	if ttl < 90 {
-		ttl = 90
-	}
-	r := &constants.FwdRule{
-		Since:       time.Now(),
-		Until:       time.Now(),
-		ClientIP:    clientIP,
-		InterfaceIP: if_ip,
-		Hostname:    name,
-		OrigIP:      actualIP,
-		QType:       qtype,
-		DNSExpiry:   time.Now().Add(time.Second * time.Duration(ttl)),
-		BytesUsed:   0,
-		ReasonCode:  reasoncode,
-	}
-	max_len := uint16(65535) //256*256
-	rules := m.db.GetFwdRulesByClientType(clientIP, qtype)
-	// Assume rules are sorted by DestIPOffset ascending
-	expected := uint16(1)
-	r.DestIPOffset = 0
-	for _, rule := range rules {
-		if rule.DestIPOffset > expected {
-			r.DestIPOffset = expected
-			break
-		}
-		expected = rule.DestIPOffset + 1
-	}
-	if r.DestIPOffset == 0 && expected <= max_len {
-		r.DestIPOffset = expected
-	}
-
-	if r.DestIPOffset == 0 {
-		return "0.0.0.0", errors.New("no available IP offset")
-	} else {
-		r.DestIP = IP4fromOffset(r.DestIPOffset)
-		err := m.db.CreateFwdRule(r, time.Now().Add(time.Duration(330)*time.Second))
-		if err == nil {
-			if m.fw != nil {
-				m.fw.AddForwardRule(r)
-				return r.DestIP, err
-			} else if reasoncode == 0 {
-				return r.OrigIP, err
-			} else {
-				return if_ip, err
-			}
-		} else {
-			return "0.0.0.0", err
-		}
-
-	}
-
+func OffsetFromIP4(IP string) uint32 {
+	ipint, _ := ip4ToInt(IP)
+	ipstart, _ := ip4ToInt("10.0.0.1")
+	return ipint - ipstart
 }
 
-func (m *FirewallManager) UpdateIPv4(fwr *constants.FwdRule, newReasonCode uint16) error {
-	err := m.fw.RemoveForwardRule(fwr)
+func (m *FirewallManager) Allocate(session constants.DNSSession, if_ip string) error {
+	var err error
+
+	if session.DNSResponse.A != nil {
+		max_len := uint16(65535) //256*256
+		// Assume rules are sorted by DestIPOffset ascending
+		rules := m.db.GetReverseDNSByClientType(session.ClientIP, session.QType)
+		sort.Slice(rules, func(i, j int) bool {
+			return rules[i].DestIPOffset < rules[j].DestIPOffset
+		})
+
+		expected := uint16(1)
+		destIPOffset := uint16(0)
+
+		for _, rule := range rules {
+			if rule.DestIPOffset > expected {
+				destIPOffset = expected
+				break
+			}
+			expected = rule.DestIPOffset + 1
+		}
+		if destIPOffset == 0 && expected <= max_len {
+			destIPOffset = expected
+		}
+
+		if destIPOffset == 0 {
+			return errors.New("no available IP offset")
+		} else {
+			destIP := IP4fromOffset(destIPOffset)
+			err := m.db.CreateReverseDNS(session.ClientIP, session.QType, &constants.ReverseDNS{
+				Hostname:     session.Hostname,
+				IP:           session.DNSResponse.A.IP,
+				DestIP:       destIP,
+				DestIPOffset: destIPOffset,
+			})
+			if err == nil {
+				if m.fw != nil {
+					m.fw.AddForwardRule(&constants.FwdRule{
+						ClientIP:    session.ClientIP,
+						AllocatedIP: session.DNSResponse.A.AllocatedIP,
+						TargetIP:    session.DNSResponse.A.IP,
+						InterfaceIP: if_ip,
+						ReasonCode:  session.ReasonCode,
+					})
+					session.DNSResponse.A.AllocatedIP = destIP
+				} else if session.ReasonCode == 0 {
+					session.DNSResponse.A.AllocatedIP = ""
+				} else {
+					session.DNSResponse.A.AllocatedIP = if_ip
+				}
+			} else {
+				session.DNSResponse.A.AllocatedIP = "0.0.0.0"
+			}
+		}
+	}
+
+	if session.DNSResponse.AAAA != nil {
+		log.Errorf("%s AAAA not yet supported", session.DNSResponse.AAAA.Name)
+	}
+
+	return err
+}
+
+func (m *FirewallManager) UpdateIPv4(s *constants.DNSSession, newReasonCode uint16) error {
+	r := &constants.FwdRule{
+		ClientIP:    s.ClientIP,
+		InterfaceIP: s.InterfaceIP,
+		ReasonCode:  s.ReasonCode,
+		TargetIP:    s.DNSResponse.A.IP,
+		AllocatedIP: s.DNSResponse.A.AllocatedIP,
+	}
+
+	err := m.fw.RemoveForwardRule(r)
 	if err != nil {
 		return err
 	}
-	fwr.ReasonCode = newReasonCode
-	m.db.ExtendFwdRule(fwr, time.Now().Add(time.Duration(330)*time.Second))
-	return m.fw.AddForwardRule(fwr)
+	s.ReasonCode = newReasonCode
+	m.db.UpdateDNSSession(s)
+	r.ReasonCode = newReasonCode
+	return m.fw.AddForwardRule(r)
 }
 
-func (m *FirewallManager) IPCacheLookup(clientIP string, name string, qtype uint16) *constants.FwdRule {
+/*func (m *FirewallManager) IPCacheLookup(clientIP string, name string, qtype uint16) *constants.FwdRule {
 	r := m.db.GetFwdRuleByHostname(clientIP, name, qtype)
 	if r != nil {
 		if time.Now().After(r.DNSExpiry) {
@@ -205,10 +245,10 @@ func (m *FirewallManager) IPCacheLookup(clientIP string, name string, qtype uint
 		m.db.ExtendFwdRule(r, time.Now().Add(time.Second*630))
 	}
 	return r
-}
+}*/
 
 func (m *FirewallManager) ReviewFwdRules() {
-	rules := m.db.GetFwdRules()
+	rules := m.db.GetDNSSessions()
 
 	if m.fw != nil {
 		if stats, err := m.fw.GetStats(); err == nil {
@@ -218,12 +258,15 @@ func (m *FirewallManager) ReviewFwdRules() {
 				if stats[i].Bytes > 0 {
 					for _, rule := range rules {
 						from := rule.ClientIP
-						to := IP4fromOffset(rule.DestIPOffset)
+						to := rule.DNSResponse.A.AllocatedIP
+						//to := IP4fromOffset(rule.DestIPOffset)
 						if source == from && destination == to {
 							if stats[i].Bytes > rule.BytesUsed {
 								rule.BytesUsed = stats[i].Bytes
-								rule.Until = time.Now()
-								m.db.ExtendFwdRule(&rule, time.Now().Add(time.Second*630))
+								rule.LastEvent = time.Now()
+								rule.SessionExpiry = time.Now().Add(time.Second * 630)
+								m.db.UpdateDNSSession(&rule)
+								//m.db.ExtendFwdRule(&rule, time.Now().Add(time.Second*630))
 								break
 							}
 						}
@@ -234,13 +277,20 @@ func (m *FirewallManager) ReviewFwdRules() {
 	}
 	now := time.Now()
 	for i := range rules {
-		if now.After(rules[i].CacheExpiry) {
+		if now.After(rules[i].SessionExpiry) {
 			var err error
 			if m.fw != nil {
-				err = m.fw.RemoveForwardRule(&rules[i])
+				//err = m.fw.RemoveForwardRule(&rules[i])
+				err = m.fw.RemoveForwardRule(&constants.FwdRule{
+					ClientIP:    rules[i].ClientIP,
+					InterfaceIP: rules[i].InterfaceIP,
+					ReasonCode:  rules[i].ReasonCode,
+					TargetIP:    rules[i].DNSResponse.A.IP,
+					AllocatedIP: rules[i].DNSResponse.A.AllocatedIP,
+				})
 			}
 			if err == nil {
-				m.db.DeleteFwdRule(&rules[i])
+				m.db.DeleteDNSSession(&rules[i])
 			}
 		}
 	}
@@ -248,11 +298,26 @@ func (m *FirewallManager) ReviewFwdRules() {
 }
 
 func (m *FirewallManager) FlushSource(clientIP string) {
-	rules := m.db.GetFwdRulesByClient(clientIP)
+	rules := m.db.GetDNSSessionsForClient(clientIP)
 	for i := range rules {
 		if m.fw != nil {
-			m.fw.RemoveForwardRule(&rules[i])
-			m.db.DeleteFwdRule(&rules[i])
+			m.fw.RemoveForwardRule(&constants.FwdRule{
+				ClientIP:    rules[i].ClientIP,
+				InterfaceIP: rules[i].InterfaceIP,
+				ReasonCode:  rules[i].ReasonCode,
+				TargetIP:    rules[i].DNSResponse.A.IP,
+				AllocatedIP: rules[i].DNSResponse.A.AllocatedIP,
+			})
 		}
+		m.db.DeleteDNSSession(&rules[i])
 	}
+}
+
+func (m *FirewallManager) ExtendFwdRule(clientIP string, hostname string, qtype uint16) error {
+	rule := m.db.GetDNSSession(clientIP, hostname, qtype)
+	if rule != nil {
+		rule.SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
+		return m.db.UpdateDNSSession(rule)
+	}
+	return fmt.Errorf("Forward rule does not exist %s:%s:%d", clientIP, hostname, qtype)
 }
