@@ -576,6 +576,10 @@ func (d *Db) DeleteReverseDNS(clientIP string, qtype uint16, DestIPOffset uint16
 	return getAll[constants.ReverseDNS](d, fmt.Sprintf("rev:"))
 }*/
 
+func (d *Db) GetReverseDNS(clientIP string, qtype uint16, DestIPOffset uint16) *constants.ReverseDNS {
+	return get[constants.ReverseDNS](d, fmt.Sprintf("rev:%s:%d:%d", clientIP, qtype, DestIPOffset))
+}
+
 func (d *Db) GetReverseDNSByClientType(clientIP string, qtype uint16) []constants.ReverseDNS {
 	return getAll[constants.ReverseDNS](d, fmt.Sprintf("rev:%s:%d", clientIP, qtype))
 }

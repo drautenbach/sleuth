@@ -16,6 +16,7 @@ const (
 type FwdRule struct {
 	ClientIP    string
 	InterfaceIP string
+	HostName    string
 	ReasonCode  uint16
 	TargetIP    string
 	AllocatedIP string
