@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"sleuth/internal/constants"
 
 	"github.com/gin-gonic/gin"
@@ -74,13 +75,19 @@ func wcStatsInit(p *Portal) *wcStats {
 	})
 
 	p.server.router.POST("/stats/traffic/:ip", func(c *gin.Context) {
-		ip, _ := c.Params.Get("ip")
+		ip := c.Request.FormValue("ip")
+
 		action := c.Request.Form.Get("action")
 		switch action {
 		case "flush":
 			p.dns.FlushCache(ip)
 			p.fw.FlushSource(ip)
+		default:
+			c.Redirect(http.StatusSeeOther, fmt.Sprintf("/stats/traffic/%s", ip))
+			c.Abort()
+			return
 		}
+
 		stats.renderTraffic(c, nil)
 	})
 

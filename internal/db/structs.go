@@ -14,15 +14,6 @@ type UserProfile struct {
 	Role          string
 }
 
-type SystemProfile struct {
-	Profilename     string
-	NetworkAdapters map[string]struct {
-		MACAddress string
-		DHCP       bool
-		Enabled    bool
-	}
-}
-
 type DeviceProfile struct {
 	MACAddress string
 	DeviceName string
@@ -30,6 +21,28 @@ type DeviceProfile struct {
 	DNSName    string
 	UserName   string
 	Enabled    bool
+}
+
+type AccessProfile struct {
+	Name           string
+	AllowedDomains []string
+	BlockedDomains []string
+}
+
+type RoleAccessTime struct {
+	Hour   uint16
+	Minute uint16
+}
+type RoleAccessSchedule struct {
+	Days          [7]bool
+	From          RoleAccessTime
+	To            RoleAccessTime
+	AccessProfile string
+}
+
+type RoleAccess struct {
+	DefaultAccessProfile string
+	Schedule             []RoleAccessSchedule
 }
 
 type Role struct {
@@ -42,6 +55,7 @@ type Role struct {
 	DNSMode              enumDNSMode
 	DNSAddress           string
 	DNSPrependDeviceName bool
+	Access               RoleAccess
 }
 
 type Settings struct {
@@ -121,3 +135,11 @@ type WAFConfiguration struct {
 	Raw     string
 	Enabled bool
 }
+
+/*
+
+
+stats->daily:(role/user)->(device/mac)->date->[site:{duration, bytes}]
+stats->:(role/user)->(device/mac)->date->[site:{duration, bytes}]
+
+*/

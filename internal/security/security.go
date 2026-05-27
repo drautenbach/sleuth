@@ -92,11 +92,12 @@ func (s *Security) VerifyDomainAccess(clientIP string, hostname string) (bool, u
 }
 
 type SessionInfo struct {
-	ClientIP     string
-	Username     string
-	Role         string
-	DNS          *db.DNSConfiguration
-	RejectReason uint16
+	ClientIP       string
+	Username       string
+	Role           string
+	DynamicRouting bool
+	DNS            *db.DNSConfiguration
+	RejectReason   uint16
 }
 
 func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
@@ -124,8 +125,12 @@ func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 	if ses == nil || user == nil {
 		switch s.settings.Mode {
 		case db.ModeAllow:
-			sessionInfo.Role = s.settings.DefaultRole
-			sessionInfo.RejectReason = constants.AccessAllowed
+			r := s.db.GetRole(s.settings.DefaultRole)
+			if r != nil {
+				sessionInfo.Role = s.settings.DefaultRole
+				sessionInfo.DynamicRouting = r.DynamicRouting
+				sessionInfo.RejectReason = constants.AccessAllowed
+			}
 		case db.ModeCaptive:
 			sessionInfo.RejectReason = constants.AccessBlockedNotAuthenticated
 		}
@@ -139,6 +144,7 @@ func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 		return sessionInfo, fmt.Errorf("Could not locate role %s for user: %s", user.Role, user.UserName)
 	}
 	sessionInfo.Role = role.RoleName
+	sessionInfo.DynamicRouting = role.DynamicRouting
 	sessionInfo.RejectReason = constants.AccessAllowed
 	if role.DNSOverride && role.DNSAddress != "" {
 		sessionInfo.DNS = &db.DNSConfiguration{

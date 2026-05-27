@@ -364,6 +364,28 @@ func (d *Db) DeleteRole(roleName string) error {
 	})
 }
 
+/****   Access Profiles     *****/
+
+func (d *Db) GetAccessProfile(name string) *AccessProfile {
+	return get[AccessProfile](d, fmt.Sprintf("AccessProfile:%s", name))
+}
+
+func (d *Db) GetAccessProfiles() []AccessProfile {
+	return getAll[AccessProfile](d, "AccessProfile:")
+}
+
+func (d *Db) CreateAccessProfile(p *AccessProfile) error {
+	return create(d, fmt.Sprintf("AccessProfile:%s", p.Name), p, 0)
+}
+
+func (d *Db) UpdateAccessProfile(p *AccessProfile) error {
+	return update(d, fmt.Sprintf("AccessProfile:%s", p.Name), p)
+}
+
+func (d *Db) DeleteAccessProfile(name string) error {
+	return delete(d, fmt.Sprintf("AccessProfile:%s", name))
+}
+
 /****   Devices     *****/
 
 func (d *Db) GetDevice(macaddress string) *DeviceProfile {
@@ -916,54 +938,6 @@ func (d *Db) RemoveCategoryFromDnsHostRules(categoryId string) error {
 
 	return err
 }
-
-/***************** DNS Cache **************************
-
-func (d *Db) CreateDNSCacheRecord(clientIP string, name string, qtype uint16, ttl uint32, rr *[]dns.RR) error {
-	strs := make([]string, len(*rr))
-	for i, r := range *rr {
-		strs[i] = r.String()
-	}
-
-	return create(d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype), &strs, time.Second*time.Duration(ttl))
-}
-
-func (d *Db) DeleteDNSCacheRecord(clientIP string, name string, qtype uint16, rr *[]dns.RR) error {
-	return delete(d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype))
-}
-
-func (d *Db) GetDNSCacheRecord(clientIP string, name string, qtype uint16) *[]dns.RR {
-	strs := get[[]string](d, fmt.Sprintf("dnscache:%s:%s:%d", clientIP, name, qtype))
-	if strs == nil {
-		return nil
-	}
-	res := make([]dns.RR, len(*strs))
-	for i, r := range *strs {
-
-		res[i], _ = dns.NewRR(r)
-	}
-	return &res
-}
-
-func (d *Db) FlushDNSCacheRecords(clientIP string) error {
-	keyprefix := fmt.Sprintf("dnscache:%s:", clientIP)
-	prefix := []byte(keyprefix)
-	err := d.dbInstance.Update(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		opts.Prefix = prefix
-		it := txn.NewIterator(opts)
-		defer it.Close()
-
-		var err error = nil
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			if err != nil {
-				err = txn.Delete(it.Item().Key())
-			}
-		}
-		return err
-	})
-	return err
-} */
 
 /***************** DNS Config - Profile **************************/
 

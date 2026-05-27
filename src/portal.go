@@ -80,8 +80,8 @@ func InitPortal() *Portal {
 }
 
 func (p *Portal) logout(c *gin.Context) {
-	is_portal, page := p.isPortalRequest(c)
-	if is_portal && page != "portal_session" {
+	rt := p.determineRequest(c)
+	if rt.isAdminPortal && rt.serveTemplate != "portal_session" {
 		c.SetCookie("sleuth_session", "", -1, "/", "", false, true)
 		c.Redirect(http.StatusSeeOther, "/")
 	} else {
@@ -93,44 +93,11 @@ func (p *Portal) logout(c *gin.Context) {
 			}
 		}
 		c.Header("connection", "close")
-		if page == "portal_session" {
+		if rt.serveTemplate == "portal_session" {
 			c.Redirect(http.StatusMovedPermanently, "/")
 		}
 		c.Redirect(http.StatusSeeOther, c.Request.URL.String())
 	}
-}
-func (p *Portal) isPortalRequest(c *gin.Context) (bool, string) {
-	is_portal := true
-	page := "portal_login"
-	host := ""
-	ip := clientIP(c.Request)
-	session, _ := p.security.GetSession(ip)
-	loc := location.Get(c)
-	if loc != nil {
-		host = loc.Host
-		if loc.Host != ip {
-			fwr := p.db.GetDNSSession(ip, loc.Host+".", 1)
-			if fwr != nil {
-				is_portal = false
-				if host == "my.session" {
-					if fwr.ReasonCode == 0 {
-						page = "portal_session"
-					} else {
-						page = "session_login"
-					}
-				} else {
-					if fwr.ReasonCode == 0 {
-						page = "portal_valid"
-					} else if fwr.ReasonCode == 1 && session != "" {
-						p.dns.ReevaluateAccess(fwr)
-
-					}
-					c.Header("connection", "close")
-				}
-			}
-		}
-	}
-	return is_portal, page
 }
 
 type requestType struct {
@@ -151,8 +118,8 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 	host := ""
 	if loc != nil {
 		host = loc.Host
-		if loc.Host != ip {
-			fwr := p.db.GetDNSSession(ip, loc.Host+".", 1)
+		if host != ip {
+			fwr := p.db.GetDNSSession(ip, host+".", 1)
 			if fwr != nil {
 				rt.isAdminPortal = false
 				rt.sessionUser, _ = p.security.GetSession(ip)
@@ -163,9 +130,11 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 					rt.serveTemplate = "session_login"
 				}
 
-				if host == "my.session" {
-					if fwr.ReasonCode == 0 {
-						rt.serveTemplate = "portal_session"
+				if fwr.IsLocal {
+					if host == "session" || host == "session."+p.config.settings.LocalDomain {
+						if fwr.ReasonCode == 0 {
+							rt.serveTemplate = "portal_session"
+						}
 					}
 				} else {
 					if fwr.ReasonCode == 0 {
@@ -176,6 +145,7 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 					c.Header("connection", "close")
 				}
 			}
+
 		}
 	}
 

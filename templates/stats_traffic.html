@@ -6,7 +6,8 @@
 
         <div class="form-group">
             <label for="ip">IP</label>
-            <wa-input name="ip" value="{{.IP}}" />
+            <wa-input name="ip" value="{{.IP}}" onchange="form.submit()"></wa-input>
+            <wa-button type="submit" name="action" value="refresh"><wa-icon name="refresh"></wa-icon></wa-button>
         </div>
 
         <p>

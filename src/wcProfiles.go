@@ -235,6 +235,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 	})
 
 	p.server.router.POST("/profiles/roles/new", func(c *gin.Context) {
+		c.Request.ParseForm()
 		var err error
 		var role = &db.Role{
 			RoleName:             c.PostForm("rolename"),
@@ -265,12 +266,63 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			}
 		}
 
-		if c.PostForm("action") == "Create" {
-			err = p.db.CreateRole(role)
+		if len(c.Request.PostForm["Schedule"]) > 0 {
+			schedules := c.Request.PostForm["Schedule"]
+			profiles := c.Request.PostForm["AccessProfile"]
+			role.Access.Schedule = make([]db.RoleAccessSchedule, len(schedules))
+			for i := range schedules {
+				if len(profiles) > i {
+					role.Access.Schedule[i].AccessProfile = profiles[i]
+				}
+				for d := range 7 {
+					role.Access.Schedule[i].Days[d] = c.Request.FormValue(fmt.Sprintf("ScheduleDays:%d:%d", i, d)) == "on"
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleFromHour:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].From.Hour = uint16(x)
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleFromMinute:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].From.Minute = uint16(x)
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleToHour:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].To.Hour = uint16(x)
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleToMinute:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].To.Minute = uint16(x)
+				}
+
+			}
+		}
+
+		action := c.PostForm("action")
+		if action == "create" {
+			for i := range role.Access.Schedule {
+				if role.Access.Schedule[i].AccessProfile == "" {
+					err = fmt.Errorf("Access profile (schedule %d) not specified", i+1)
+				}
+			}
+			if err == nil {
+				err = p.db.CreateRole(role)
+			}
 			if err == nil {
 				c.Redirect(http.StatusSeeOther, "/profiles/roles")
 				c.Abort()
 				return
+			}
+		} else if action == "AddSchedule" {
+			role.Access.Schedule = append(role.Access.Schedule, db.RoleAccessSchedule{
+				Days: [7]bool{false, true, true, true, true, true, false},
+				From: db.RoleAccessTime{Hour: 8},
+				To:   db.RoleAccessTime{Hour: 17},
+			})
+		} else if len(action) > 14 && action[0:15] == "RemoveSchedule:" {
+			if i, err2 := strconv.ParseInt(action[15:], 10, 16); err2 == nil {
+				if i < int64(len(role.Access.Schedule)) {
+					role.Access.Schedule = append(role.Access.Schedule[:i], role.Access.Schedule[i+1:]...)
+				} else {
+					err = fmt.Errorf("Could not remove element %d from Schedule", i)
+				}
+			} else {
+				err = err2
 			}
 		}
 
@@ -281,6 +333,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			"model": gin.H{
 				"Role":              role,
 				"DNSConfigurations": p.db.GetDNSConfigurations(),
+				"AccessProfiles":    p.db.GetAccessProfiles(),
 				"Types":             types,
 			},
 		})
@@ -304,6 +357,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			"model": gin.H{
 				"Role":              role,
 				"DNSConfigurations": p.db.GetDNSConfigurations(),
+				"AccessProfiles":    p.db.GetAccessProfiles(),
 				"Types":             types,
 			},
 		})
@@ -340,14 +394,65 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 			}
 		}
 
+		if len(c.Request.PostForm["Schedule"]) > 0 {
+			schedules := c.Request.PostForm["Schedule"]
+			profiles := c.Request.PostForm["AccessProfile"]
+			role.Access.Schedule = make([]db.RoleAccessSchedule, len(schedules))
+			for i := range schedules {
+				if len(profiles) > i {
+					role.Access.Schedule[i].AccessProfile = profiles[i]
+				}
+				for d := range 7 {
+					role.Access.Schedule[i].Days[d] = c.Request.FormValue(fmt.Sprintf("ScheduleDays:%d:%d", i, d)) == "on"
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleFromHour:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].From.Hour = uint16(x)
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleFromMinute:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].From.Minute = uint16(x)
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleToHour:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].To.Hour = uint16(x)
+				}
+				if x, ok := strconv.ParseInt(c.Request.FormValue(fmt.Sprintf("ScheduleToMinute:%d", i)), 10, 16); ok == nil {
+					role.Access.Schedule[i].To.Minute = uint16(x)
+				}
+
+			}
+		}
+
+		action := c.PostForm("action")
 		if role == nil {
 			err = fmt.Errorf("role %s does not exist", c.Param("rolename"))
-		} else if c.PostForm("action") == "edit" {
-			err = p.db.UpdateRole(role)
+		} else if action == "edit" {
+			for i := range role.Access.Schedule {
+				if role.Access.Schedule[i].AccessProfile == "" {
+					err = fmt.Errorf("Access profile (schedule %d) not specified", i+1)
+				}
+			}
+			if err == nil {
+				err = p.db.UpdateRole(role)
+			}
 			if err == nil {
 				c.Redirect(http.StatusSeeOther, "/profiles/roles")
 				c.Abort()
 				return
+			}
+		} else if action == "AddSchedule" {
+			role.Access.Schedule = append(role.Access.Schedule, db.RoleAccessSchedule{
+				Days: [7]bool{false, true, true, true, true, true, false},
+				From: db.RoleAccessTime{Hour: 8},
+				To:   db.RoleAccessTime{Hour: 17},
+			})
+		} else if len(action) > 14 && action[0:15] == "RemoveSchedule:" {
+			if i, err2 := strconv.ParseInt(action[15:], 10, 16); err2 == nil {
+				if i < int64(len(role.Access.Schedule)) {
+					role.Access.Schedule = append(role.Access.Schedule[:i], role.Access.Schedule[i+1:]...)
+				} else {
+					err = fmt.Errorf("Could not remove element %d from Schedule", i)
+				}
+			} else {
+				err = err2
 			}
 		}
 
@@ -359,6 +464,7 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 				"Role":              role,
 				"DNSConfigurations": p.db.GetDNSConfigurations(),
 				"Types":             types,
+				"AccessProfiles":    p.db.GetAccessProfiles(),
 			},
 		})
 	})
@@ -546,6 +652,129 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 				"error":  err.Error(),
 				"model": gin.H{
 					"Device": device,
+				},
+			})
+		}
+	})
+
+	/**** Access Profiles ****/
+
+	p.server.router.GET("/profiles/accessprofiles", func(c *gin.Context) {
+		profiles := p.db.GetAccessProfiles()
+
+		p.server.HTML(c, "profiles_accessprofiles", gin.H{
+			"model": gin.H{
+				"Profiles": profiles,
+			},
+		})
+	})
+
+	p.server.router.GET("/profiles/accessprofiles/new", func(c *gin.Context) {
+		p.server.HTML(c, "profiles_access", gin.H{
+			"action": "create",
+			"title":  "New Access Profile",
+			"model": gin.H{
+				"Profile": &db.AccessProfile{},
+			},
+		})
+	})
+
+	p.server.router.POST("/profiles/accessprofiles/new", func(c *gin.Context) {
+		var err error
+		var profile = &db.AccessProfile{
+			Name:           c.PostForm("Name"),
+			BlockedDomains: strings.Split(c.PostForm("BlockedDomains"), "\n"),
+			AllowedDomains: strings.Split(c.PostForm("AllowedDomains"), "\n"),
+		}
+
+		if c.PostForm("action") == "create" {
+			err = p.db.CreateAccessProfile(profile)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, "/profiles/accessprofiles")
+				c.Abort()
+				return
+			}
+		}
+
+		p.server.HTML(c, "profiles_access", gin.H{
+			"action": "create",
+			"title":  "New Role",
+			"error":  err,
+			"model": gin.H{
+				"Profile": profile,
+			},
+		})
+	})
+
+	p.server.router.GET("/profiles/accessprofile/:name", func(c *gin.Context) {
+		// get rolename from the route parameter
+		name := c.Param("name")
+		profile := p.db.GetAccessProfile(name)
+
+		p.server.HTML(c, "profiles_access", gin.H{
+			"action": "edit",
+			"title":  "Edit Access Profile",
+			"model": gin.H{
+				"Profile": profile,
+				"action":  "Save",
+			},
+		})
+	})
+
+	p.server.router.POST("/profiles/accessprofile/:name", func(c *gin.Context) {
+		var profile = p.db.GetAccessProfile(c.Param("name"))
+
+		profile.AllowedDomains = strings.Split(c.PostForm("AllowedDomains"), "\n")
+		profile.BlockedDomains = strings.Split(c.PostForm("BlockedDomains"), "\n")
+
+		var err error
+		if profile == nil {
+			err = fmt.Errorf("access profile %s does not exist", c.Param("name"))
+		} else if c.PostForm("action") == "edit" {
+			err = p.db.UpdateAccessProfile(profile)
+			if err == nil {
+				c.Redirect(http.StatusSeeOther, "/profiles/accessprofiles")
+				c.Abort()
+				return
+			}
+		}
+
+		p.server.HTML(c, "profiles_access", gin.H{
+			"action": "edit",
+			"title":  "Edit Access Profile",
+			"error":  err,
+			"model": gin.H{
+				"Profile": profile,
+			},
+		})
+	})
+
+	p.server.router.GET("/profiles/accessprofiles/delete/:name", func(c *gin.Context) {
+		// get rolename from the route parameter
+		profile := p.db.GetAccessProfile(c.Param("name"))
+		p.server.HTML(c, "profiles_access_delete", gin.H{
+			"action": "delete",
+			"title":  "Delete Access Profile",
+			"model": gin.H{
+				"Profile": profile,
+			},
+		})
+	})
+
+	p.server.router.POST("/profiles/accessprofiles/delete/:name", func(c *gin.Context) {
+		// get rolename from the route parameter
+		err := p.db.DeleteAccessProfile(c.Param("name"))
+		if err == nil {
+			c.Redirect(http.StatusSeeOther, "/profiles/accessprofiles")
+			c.Abort()
+		} else {
+			profile := p.db.GetAccessProfile(c.Param("rolename"))
+			p.server.HTML(c, "profiles_accessprofile_delete", gin.H{
+				"action": "delete",
+				"title":  "Delete Access Profile",
+				"error":  err.Error(),
+				"model": gin.H{
+					"Profile": profile,
 				},
 			})
 		}

@@ -4,50 +4,156 @@
         "title": "Getting Started",
         "href": "/",
         "items": [
-            { "name": "Basic Settings", "href": "/settings"}
+            {
+                "name": "Basic Settings",
+                "href": "/settings"
+            }
+        ]
+    },
+    {
+        "name": "Config",
+        "items": [
+            {
+                "name": "DNS Client",
+                "href": "/services/dnsconfigurations"
+            },
+            {
+                "name": "WAF Rules",
+                "href": "/services/wafrules"
+            },
+            {
+                "name": "WAF Configurations",
+                "href": "/services/wafconfigurations"
+            }
         ]
     },
     {
         "name": "Profiles",
         "items": [
-            { "name": "Roles", "href": "/profiles/roles" 
-            , "items": [ 
-                {"name": "New", "href": "/profiles/roles/new"},
-                {"name": "Edit", "href": "/profiles/role/"},
-                {"name": "Delete", "href": "/profiles/roles/delete"} 
-            ] },
-            { "name": "Users", "href": "/profiles/users"
-            , "items": [ 
-                {"name": "New", "href": "/profiles/users/new"},
-                {"name": "Edit", "href": "/profiles/user/"},
-                {"name": "Delete", "href": "/profiles/users/delete"}, 
-                {"name": "Reset Password", "href": "/profiles/users/resetpassword"} 
-            ] },
-            { "name": "Devices", "href": "/profiles/devices"
-            , "items": [ 
-                {"name": "New", "href": "/profiles/devices/new"},
-                {"name": "Edit", "href": "/profiles/device/"},
-                {"name": "Delete", "href": "/profiles/devices/delete"}
-            ] }
+            {
+                "name": "Roles",
+                "href": "/profiles/roles",
+                "items": [
+                    {
+                        "name": "New",
+                        "href": "/profiles/roles/new"
+                    },
+                    {
+                        "name": "Edit",
+                        "href": "/profiles/role/"
+                    },
+                    {
+                        "name": "Delete",
+                        "href": "/profiles/roles/delete"
+                    }
+                ]
+            },
+            {
+                "name": "Users",
+                "href": "/profiles/users",
+                "items": [
+                    {
+                        "name": "New",
+                        "href": "/profiles/users/new"
+                    },
+                    {
+                        "name": "Edit",
+                        "href": "/profiles/user/"
+                    },
+                    {
+                        "name": "Delete",
+                        "href": "/profiles/users/delete"
+                    },
+                    {
+                        "name": "Reset Password",
+                        "href": "/profiles/users/resetpassword"
+                    }
+                ]
+            },
+            {
+                "name": "Devices",
+                "href": "/profiles/devices",
+                "items": [
+                    {
+                        "name": "New",
+                        "href": "/profiles/devices/new"
+                    },
+                    {
+                        "name": "Edit",
+                        "href": "/profiles/device/"
+                    },
+                    {
+                        "name": "Delete",
+                        "href": "/profiles/devices/delete"
+                    }
+                ]
+            },
+            {
+                "name": "Access",
+                "href": "/profiles/accessprofiles",
+                "items": [
+                    {
+                        "name": "New",
+                        "href": "/profiles/accessprofiles/new"
+                    },
+                    {
+                        "name": "Edit",
+                        "href": "/profiles/accessprofile/"
+                    },
+                    {
+                        "name": "Delete",
+                        "href": "/profiles/accessprofiles/delete"
+                    }
+                ]
+            }
         ]
     },
     {
         "name": "Services",
         "items": [
-            { "name": "DNS Client", "href": "/services/dnsconfigurations" },
-            { "name": "Proxy", "href": "/services/httpproxies" },
-            { "name": "WAF Rules", "href": "/services/wafrules" },
-            { "name": "WAF Configurations", "href": "/services/wafconfigurations" }
+            {
+                "name": "Reverse Proxy",
+                "href": "/services/httpproxies",
+                "items": [
+                    {
+                        "name": "New",
+                        "href": "/services/httpproxies/new"
+                    },
+                    {
+                        "name": "Edit",
+                        "href": "/services/httpproxy/"
+                    },
+                    {
+                        "name": "Delete",
+                        "href": "/services/httpproxies/delete"
+                    }
+                ]
+            }
         ]
     },
-    {   "name": "System",
+    {
+        "name": "System",
         "items": [
-             { "name": "Users", "href": "/system/users" },
-             { "name": "Network", "href": "/system/network" },
-             { "name": "Sessions", "href": "/system/sessions" },
-             { "name": "Terminal", "href": "/shell"},
-             { "name": "Logs", "href": "/system/logs" }
+            {
+                "name": "Users",
+                "href": "/system/users"
+            },
+            {
+                "name": "Network",
+                "href": "/system/network"               
+            },
+            {
+                "name": "Sessions",
+                "href": "/system/sessions"
+            },
+            {
+                "name": "Terminal",
+                "href": "/shell"
+            },
+            {
+                "name": "Logs",
+                "href": "/system/logs"
+            }
         ]
     }
-
 ]

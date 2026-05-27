@@ -36,6 +36,7 @@ type DNSSession struct {
 	DNSExpiry     time.Time
 	BytesUsed     uint64
 	ReasonCode    uint16
+	IsLocal       bool
 	DNSResponse   DNSResponse
 }
 

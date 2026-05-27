@@ -47,7 +47,7 @@ func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) (*con
 	return cache, nil
 }
 
-func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.RR, cache *constants.DNSSession, ses security.SessionInfo, if_ip string) []dns.RR {
+func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.RR, cache *constants.DNSSession, ses security.SessionInfo, if_ip string, isLocal bool) []dns.RR {
 	ttl := uint32(32768)
 	cached := cache != nil
 	if upstream != nil && cache != nil {
@@ -119,6 +119,7 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 			BytesUsed:     0,
 			SessionExpiry: time.Now().Add(time.Duration(330) * time.Second),
 			ReasonCode:    ses.RejectReason,
+			IsLocal:       isLocal,
 			DNSResponse: constants.DNSResponse{
 				Raw: make([]string, 0),
 			},
@@ -170,7 +171,7 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 	}
 	if cache.DNSResponse.A != nil {
 		ip := cache.DNSResponse.A.IP
-		if cache.DNSResponse.A.AllocatedIP != "" {
+		if ses.DynamicRouting && !cache.IsLocal && cache.DNSResponse.A.AllocatedIP != "" {
 			ip = cache.DNSResponse.A.AllocatedIP
 		}
 		resp = append(resp, &dns.A{
@@ -206,26 +207,44 @@ func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip s
 	if localdomain[len(localdomain)-1] != '.' {
 		localdomain += "."
 	}
+
+	hostname := ""
 	if len(name) > len(localdomain) && name[len(name)-len(localdomain):] == localdomain {
-		hostname := name[0 : len(name)-len(localdomain)]
+		hostname = name[0 : len(name)-len(localdomain)]
+	} else if len(strings.Split(name, ".")) == 2 {
+		hostname = strings.Split(name, ".")[0]
+	}
+
+	if hostname != "" {
 		arr := make([]dns.RR, 0)
 
-		for _, device := range s.db.GetDevices() {
-			if device.DNSName == hostname {
-				dev := s.network.FindByMac(device.MACAddress)
-				if dev != nil && dev.Ip != nil {
-					rr, err := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60, getQueryTypeText(qtype), dev.Ip.String()))
-					arr = append(arr, rr)
-					if err != nil {
-						log.Println(err)
-						return []dns.RR{}, err
+		if hostname == "session" {
+			rr, err := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 1, getQueryTypeText(qtype), if_ip))
+			arr = append(arr, rr)
+			if err != nil {
+				log.Println(err)
+				return []dns.RR{}, err
+			}
+		} else {
+			for _, device := range s.db.GetDevices() {
+				if device.DNSName == hostname {
+					dev := s.network.FindByMac(device.MACAddress)
+					if dev != nil && dev.Ip != nil {
+						rr, err := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 1, getQueryTypeText(qtype), dev.Ip.String()))
+						arr = append(arr, rr)
+						if err != nil {
+							log.Println(err)
+							return []dns.RR{}, err
+						}
 					}
 				}
 			}
 		}
 
 		s.security.VerifyDomainAccess(source, name)
-		return arr, nil
+		if len(arr) > 0 {
+			return arr, nil
+		}
 
 	}
 	return nil, errors.New("Not within local domain")
@@ -235,23 +254,20 @@ func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip s
 func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if_ip string) ([]dns.RR, int) {
 	arr := make([]dns.RR, 0)
 
-	arr, err := s.queryLocal(name, qtype, source, if_ip)
-	if err == nil {
-		logQueryResult(source, name, qtype, "resolved as local address")
-		return arr, dns.RcodeSuccess
-	}
 	ses, _ := s.security.GetSessionInfo(source)
 	cache, err := s.queryCache(source, name, qtype)
 	if err == nil && cache != nil {
 		if time.Until(cache.DNSExpiry) > 0 {
 			logQueryResult(source, name, qtype, "resolved from cache")
-			return s.processResponse(name, qtype, nil, cache, ses, if_ip), dns.RcodeSuccess
+			return s.processResponse(name, qtype, nil, cache, ses, if_ip, cache.IsLocal), dns.RcodeSuccess
 		}
 	}
-	if qtype == 1 && name == "my.session." { // special case to allow logout
-		rr, _ := dns.NewRR(fmt.Sprintf("%s %d IN %s %s", name, 60, "A", if_ip))
-		arr = append(arr, rr)
-		return s.processResponse(name, qtype, &arr, cache, ses, if_ip), dns.RcodeSuccess
+
+	arr, err = s.queryLocal(name, qtype, source, if_ip)
+	if err == nil {
+		logQueryResult(source, name, qtype, "resolved as local address")
+		//return arr, dns.RcodeSuccess
+		return s.processResponse(name, qtype, &arr, cache, ses, if_ip, true), dns.RcodeSuccess
 	}
 
 	/*arr, err = queryBlacklist(name, qtype)
@@ -332,7 +348,7 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved via upstream")
-		return s.processResponse(name, qtype, &in.Answer, cache, ses, if_ip), dns.RcodeSuccess
+		return s.processResponse(name, qtype, &in.Answer, cache, ses, if_ip, false), dns.RcodeSuccess
 	}
 
 	logQueryResult(source, name, qtype, "did not resolve")

@@ -118,7 +118,12 @@ func initDefaults(p *Portal) {
 		})
 	}
 
+	if len(p.db.GetAccessProfiles()) == 0 {
+		p.db.CreateAccessProfile(&db.AccessProfile{Name: "Default"})
+	}
+
 	if len(p.db.GetRoles()) == 0 {
+
 		dnsconfigurations := p.db.GetDNSConfigurations()
 		profile := dnsconfigurations[0]
 		for i := range dnsconfigurations {

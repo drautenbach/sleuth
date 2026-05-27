@@ -188,6 +188,7 @@ func initWebServer(ttl time.Duration, h gin.HandlerFunc) *WebServer {
 		"array": func(values ...interface{}) []interface{} {
 			return values
 		},
+		"join": strings.Join,
 	})
 
 	if h != nil {

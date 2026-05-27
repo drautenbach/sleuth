@@ -221,7 +221,7 @@ func (m *FirewallManager) Allocate(session constants.DNSSession, if_ip string) e
 					session.DNSResponse.A.AllocatedIP = if_ip
 				}
 			} else {
-				session.DNSResponse.A.AllocatedIP = "0.0.0.0"
+				session.DNSResponse.A.AllocatedIP = if_ip //"0.0.0.0"
 			}
 		}
 	}

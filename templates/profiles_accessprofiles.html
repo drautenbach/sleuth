@@ -1,0 +1,22 @@
+{{template "template-start.html" .}}
+
+    <span class="right"><wa-button href="accessprofiles/new" style="font-size: 10px;"><wa-icon name="plus"></wa-icon></wa-button></span>
+    <h2>Access Profiles</h2>
+    <table border="1" cellspacing="0" cellpadding="0">
+        <thead>
+            <tr>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .model.Profiles}}
+            <tr>
+                <td><a href="accessprofile/{{.Name}}"><wa-icon name="pencil-square"></wa-icon></a>&nbsp;{{.Name}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+
+
+
+{{template "template-end.html" .}}

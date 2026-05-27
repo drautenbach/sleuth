@@ -1,61 +1,169 @@
 {{template "template-start.html" .}}
+<h3>{{.title}}</h3>
 
-    <form method="post">
-        <div class="form-layout">
-            <h3>{{.title}}</h3>
-                <div class="form-group">
-                    <label for="rolename">Rolename</label>
-                    <input type="text" name="rolename" value="{{.model.Role.RoleName}}" onkeyup="event.srcElement.value = event.srcElement.value.toLowerCase()" {{if eq $.action "create"}}required{{else}}readonly{{end}} />
-                </div>
-                <div class="form-group">
-                    <wa-switch name="dynamicrouting"{{if .model.Role.DynamicRouting}} checked{{end}}>Dynamic routing</wa-switch>
-                </div>
-                <div class="form-group">
-                    <wa-switch name="admin"{{if .model.Role.Admin}} checked{{end}}>Allow admin portal access</wa-switch>
-                </div>
+<form method="POST">
+    <div style="background: #EEE; border: 1px solid grey; border-radius: 5px; padding: 0 10px 0 10px;">
 
-                <div class="form-group">
-                    <label for="rolename">DNS</label>
-                    <wa-select name="DNSConfiguration" value="{{.model.Role.DNSConfiguration}}" onchange="form.submit()">
+        <wa-tab-group id="tabs">
+            <wa-tab panel="general">General</wa-tab>
+            <wa-tab panel="schedule">Access Schedule</wa-tab>
+
+            <wa-tab-panel name="general">
+                <div class="form-layout">
+                    <div class="form-group">
+                        <label for="rolename">Role Name</label>
+                        <input type="text" name="rolename" value="{{.model.Role.RoleName}}"
+                            onkeyup="event.srcElement.value = event.srcElement.value.toLowerCase()" {{if eq
+                            $.action "create" }}required{{else}}readonly{{end}} />
+                    </div>
+                    <div class="form-group">
+                        <wa-switch name="dynamicrouting" {{if .model.Role.DynamicRouting}} checked{{end}}>Dynamic
+                            routing</wa-switch>
+                    </div>
+                    <div class="form-group">
+                        <wa-switch name="admin" {{if .model.Role.Admin}} checked{{end}}>Allow admin portal
+                            access</wa-switch>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rolename">DNS</label>
+                        <wa-select name="DNSConfiguration" value="{{.model.Role.DNSConfiguration}}"
+                            onchange="form.submit()">
                             <wa-option value="">(Default)</wa-option>
-                        {{range .model.DNSConfigurations}}
+                            {{range .model.DNSConfigurations}}
                             <wa-option value="{{.ProfileId}}">{{.Name}}</wa-option>
-                        {{end}}
-                    <wa-select>
+                            {{end}}
+                            <wa-select>
+                    </div>
+                    <wa-checkbox name="DNSOverride" {{if .model.Role.DNSOverride}}checked{{end}}
+                        onchange="form.submit()">DNS Override</wa-checkbox>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <wa-select name="DNSMode" value="{{.model.Profile.Type}}" {{if eq .model.Role.DNSOverride
+                            false}}class="disabled" {{end}} onchange="form.submit()">
+                            {{range .model.Types}}
+                            <wa-option value="{{.Value}}" {{if eq .Value
+                                $.model.Role.DNSMode}}selected{{end}}>{{.Text}}</wa-option>
+                            {{end}}
+                            <wa-select>
+                    </div>
+                    <div class="form-group">
+                        <label for="rolename">Address</label>
+                        <wa-input name="DNSAddress" value="{{.model.Role.DNSAddress}}" {{if eq .model.Role.DNSOverride
+                            false}}class="disabled" {{end}}></wa-input>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="DNSPrependDeviceName"></label>
+                        <wa-switch name="DNSPrependDeviceName" {{if .model.Role.DNSPrependDeviceName}}
+                            checked{{end}}>Prepend device name to address (only applies to tcp/tcp-tls)</wa-switch>
+                    </div>
+
                 </div>
-                <wa-checkbox name="DNSOverride" {{if .model.Role.DNSOverride}}checked{{end}} onchange="form.submit()">DNS Override</wa-checkbox>
-                <div class="form-group">
-                    <label>Type</label>
-                    <wa-select name="DNSMode" value="{{.model.Profile.Type}}" {{if eq .model.Role.DNSOverride false}}class="disabled"{{end}} onchange="form.submit()">
-                        {{range .model.Types}}
-                            <wa-option value="{{.Value}}" {{if eq .Value $.model.Role.DNSMode}}selected{{end}}>{{.Text}}</wa-option>
+            </wa-tab-panel>
+            <wa-tab-panel name="schedule">
+                <table class="schedule">
+                    <thead>
+                        <tr>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                            <th>Time (swap from/to for excluding)</th>
+                            <th>Access Profile</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $index, $schedule := .model.Role.Access.Schedule}}
+                        <tr>
+                            {{range $day, $on := $schedule.Days}}
+                            <td><wa-switch name="ScheduleDays:{{$index}}:{{$day}}" {{if $on}}checked{{end}}></wa-switch>
+                            </td>
+                            {{end}}
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <wa-input class="hourminute" type="number" type="number" min="0" max="23"
+                                        name="ScheduleFromHour:{{$index}}"
+                                        value="{{$schedule.From.Hour}}"></wa-input>:<wa-input type="number"
+                                        type="number" min="0" max="59" name="ScheduleFromMinute:{{$index}}"
+                                        value="{{$schedule.From.Minute}}"></wa-input>
+                                    to <wa-input type="number" type="number" min="0" max="23"
+                                        name="ScheduleToHour:{{$index}}"
+                                        value="{{$schedule.To.Hour}}"></wa-input>:<wa-input type="number" type="number"
+                                        min="0" max="59" name="ScheduleToMinute:{{$index}}"
+                                        value="{{$schedule.To.Minute}}"></wa-input>
+                                </div>
+                            </td>
+                            <td>
+                                <wa-select name="AccessProfile" value="{{$schedule.AccessProfile}}">
+                                    <wa-option value=""></wa-option>
+                                    {{range $.model.AccessProfiles}}
+                                    <wa-option value="{{.Name}}">{{.Name}}</wa-option>
+                                    {{end}}
+                                </wa-select>
+                            </td>
+                            <td>
+                                <input type="hidden" name="Schedule" value="{{$index}}" />
+                                <wa-button type="submit" name="action" value="RemoveSchedule:{{$index}}"><wa-icon
+                                        name="remove"></wa-icon></wa-button>
+                            </td>
+                        </tr>
                         {{end}}
-                    <wa-select>
-                </div>                
-                <div class="form-group">
-                    <label for="rolename">Address</label>
-                   <wa-input name="DNSAddress" value="{{.model.Role.DNSAddress}}" {{if eq .model.Role.DNSOverride false}}class="disabled"{{end}}></wa-input>
-                </div>  
-                
-                <div class="form-group">
-                    <label for="DNSPrependDeviceName"></label>
-                   <wa-switch name="DNSPrependDeviceName" {{if .model.Role.DNSPrependDeviceName}} checked{{end}}>Prepend device name to address (only applies to tcp/tcp-tls)</wa-switch>
-                </div>  
+                        <tr>
+                            <td colspan="9"></td>
+                            <td><wa-button type="submit" name="action" value="AddSchedule"><wa-icon
+                                        name="plus"></wa-icon></wa-button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </wa-tab-panel>
+        </wa-tab-group>
+    </div>
 
-                
-                <p><label class="error-message">{{.error}}</label></p>
-                <div class="button-group">
-                    <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save"></wa-icon> {{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
-                    <wa-button variant="default" href="../roles" outline><wa-icon name="arrow-left"></wa-icon> Cancel</wa-button>
+    <p><label class="error-message">{{.error}}</label></p>
+    <div class="button-group">
+        <wa-button variant="primary" type="submit" name="action" value="{{.action}}"><wa-icon name="save"></wa-icon>
+            {{if eq $.action "create"}}Create{{else}}Save{{end}}</wa-button>
+        <wa-button variant="default" href="../roles" outline><wa-icon name="arrow-left"></wa-icon> Cancel</wa-button>
 
-                    {{if eq $.action "edit"}}
-                        <span class="right">
-                            <wa-button href="../roles/delete/{{.model.Role.RoleName}}" variant="danger" outline><wa-icon name="xmark"></wa-icon> Delete</wa-button>
-                        </span>
-                    {{end}}
-                </div>                    
-        </div>
-    </form>
+        {{if eq $.action "edit"}}
+        <span class="right">
+            <wa-button href="../roles/delete/{{.model.Role.RoleName}}" variant="danger" outline><wa-icon
+                    name="xmark"></wa-icon> Delete</wa-button>
+        </span>
+        {{end}}
+    </div>
 
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tabs = document.getElementById('tabs');
+
+        // --- Helper: set tab from URL hash ---
+        function syncFromHash() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                tabs.active = hash;
+            }
+        }
+
+        // --- Sync tab -> hash ---
+        tabs.addEventListener('wa-tab-show', (event) => {
+            const name = event.detail.name;
+            history.replaceState(null, '', `#${name}`);
+        });
+
+        // --- Sync hash -> tab (initial load) ---
+        syncFromHash();
+
+        // --- Sync hash -> tab (back/forward navigation) ---
+        window.addEventListener('hashchange', syncFromHash);
+    });
+</script>
 
 {{template "template-end.html" .}}
