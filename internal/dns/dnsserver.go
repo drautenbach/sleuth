@@ -415,7 +415,7 @@ func (s DnsServer) Start() {
 func (s *DnsServer) ReevaluateAccess(fwr *constants.DNSSession) error {
 	_, newReason := s.security.VerifyDomainAccess(fwr.ClientIP, fwr.Hostname)
 	if newReason != fwr.ReasonCode {
-		if s.fw.IsActive() {
+		if s.fw.IsActive() && fwr.DNSResponse.A != nil {
 			return s.fw.UpdateIPv4(fwr, newReason)
 		}
 		fwr.ReasonCode = newReason
