@@ -12,6 +12,7 @@ type UserProfile struct {
 	PasswordReset time.Time
 	Enabled       bool
 	Role          string
+	AccessProfile string
 }
 
 type DeviceProfile struct {
@@ -103,11 +104,12 @@ const (
 )
 
 type Session struct {
-	IP         string
-	Username   string
-	MacAddress string
-	Expiry     time.Time
-	ReasonCode uint16
+	IP            string
+	Username      string
+	MacAddress    string
+	Expiry        time.Time
+	ReasonCode    uint16
+	AccessProfile string
 }
 
 type HttpProxy struct {

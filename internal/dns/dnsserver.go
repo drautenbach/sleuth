@@ -152,7 +152,7 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 		cache.DNSExpiry = time.Now().Add(time.Duration(ttl) * time.Second)
 	}
 
-	if upstream != nil {
+	if ses.RejectReason == 0 && upstream != nil {
 		s.fw.Allocate(*cache, if_ip)
 	}
 
@@ -171,7 +171,9 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 	}
 	if cache.DNSResponse.A != nil {
 		ip := cache.DNSResponse.A.IP
-		if ses.DynamicRouting && !cache.IsLocal && cache.DNSResponse.A.AllocatedIP != "" {
+		if ses.RejectReason > 0 {
+			ip = if_ip
+		} else if ses.DynamicRouting && !cache.IsLocal && cache.DNSResponse.A.AllocatedIP != "" {
 			ip = cache.DNSResponse.A.AllocatedIP
 		}
 		resp = append(resp, &dns.A{

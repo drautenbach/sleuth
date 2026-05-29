@@ -1,8 +1,36 @@
-Active session
+<!doctype html>
 
-<form method="POST">
-    <a href="{{.portal_address}}">Admin Portal</a><br />
-    <button type="submit" name="sleuth_action" value="logout">
-    Log Out
-  </button>
-</form>
+<html>
+
+<head class="wa-theme-dark">
+<head>    
+    {{template "template-head.html" .}}
+</head>
+<body>
+    
+
+    You are logged in as {{.UserName}}
+
+    <form method="POST">
+        <a href="{{.portal_address}}">Admin Portal</a><br />
+
+         <div class="form-layout">
+            <div class="form-group">
+                <label for="rolename">Access Profile</label>
+
+                <wa-select name="AccessProfile" value="{{.accessprofile}}" onchange="form.submit()">
+                  {{range .accessprofiles}}
+                    <wa-option value="{{.}}">{{.}}</wa-option>
+                  {{end}}
+                </wa-select>
+            </div>
+          </div>
+
+
+        <button type="submit" name="sleuth_action" value="logout">
+        Log Out
+      </button>
+    </form>
+
+
+{{template "template-end.html" .}}

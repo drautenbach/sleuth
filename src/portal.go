@@ -85,7 +85,7 @@ func (p *Portal) logout(c *gin.Context) {
 		c.SetCookie("sleuth_session", "", -1, "/", "", false, true)
 		c.Redirect(http.StatusSeeOther, "/")
 	} else {
-		p.security.ClearSession(clientIP(c.Request))
+		p.security.ForceLogout(clientIP(c.Request))
 		allrules := p.db.GetDNSSessionsForClient(clientIP(c.Request))
 		for i := range allrules {
 			if allrules[i].ReasonCode == 0 {
@@ -107,11 +107,19 @@ type requestType struct {
 	host            string
 	resourceRequest bool
 	blocked         bool
+	accessprofiles  []string
+	accessprofile   string
 }
 
 func (p *Portal) determineRequest(c *gin.Context) requestType {
 	var rt = &requestType{
 		isAdminPortal: true,
+	}
+	if c.Request.Method == http.MethodGet {
+		info, err := os.Stat("./www" + c.Request.URL.Path)
+		if info != nil && (os.IsExist(err) || !info.IsDir()) {
+			rt.resourceRequest = true
+		}
 	}
 	ip := clientIP(c.Request)
 	loc := location.Get(c)
@@ -121,26 +129,43 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 		if host != ip {
 			fwr := p.db.GetDNSSession(ip, host+".", 1)
 			if fwr != nil {
-				rt.isAdminPortal = false
-				rt.sessionUser, _ = p.security.GetSession(ip)
-				if fwr.ReasonCode == constants.AccessBlockedUnauthorised {
-					rt.serveTemplate = "session_unauthorised"
-					rt.blocked = true
-				} else {
-					rt.serveTemplate = "session_login"
-				}
+				ses, _ := p.security.GetSessionInfo(ip)
+				rt.sessionUser = ses.Username
 
 				if fwr.IsLocal {
-					if host == "session" || host == "session."+p.config.settings.LocalDomain {
-						if fwr.ReasonCode == 0 {
-							rt.serveTemplate = "portal_session"
+					if !rt.resourceRequest {
+						if host == "session" || host == "session."+p.config.settings.LocalDomain {
+							rt.isAdminPortal = false
+							if fwr.ReasonCode == 0 {
+								rt.serveTemplate = "portal_session"
+							}
+							if ses.Role != "" {
+								if r := p.db.GetRole(ses.Role); r != nil {
+									rt.accessprofiles = security.GetActiveAccessProfiles(r)
+								}
+							}
+							if c.Request.Method == "POST" && c.Request.FormValue("AccessProfile") != "" {
+								if p.security.SetAccessProfile(ip, c.Request.FormValue("AccessProfile")) == nil {
+									ses, _ = p.security.GetSessionInfo(ip)
+								}
+							}
+							if ses.AccessProfile != nil {
+								rt.accessprofile = ses.AccessProfile.Name
+							}
+
 						}
 					}
 				} else {
-					if fwr.ReasonCode == 0 {
+					rt.isAdminPortal = false
+					if fwr.ReasonCode == constants.AccessBlockedUnauthorised {
+						rt.serveTemplate = "session_unauthorised"
+						rt.blocked = true
+					} else if fwr.ReasonCode == constants.AccessAllowed {
 						rt.serveTemplate = "portal_valid"
 					} else if fwr.ReasonCode == 1 && rt.sessionUser != "" {
 						p.dns.ReevaluateAccess(fwr)
+					} else {
+						rt.serveTemplate = "session_login"
 					}
 					c.Header("connection", "close")
 				}
@@ -164,13 +189,6 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 			}
 		} else {
 			rt.serveTemplate = "portal_login"
-		}
-	}
-
-	if c.Request.Method == http.MethodGet {
-		info, err := os.Stat("./www" + c.Request.URL.Path)
-		if info != nil && (os.IsExist(err) || !info.IsDir()) {
-			rt.resourceRequest = true
 		}
 	}
 
@@ -272,7 +290,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 						}
 					} else {
 						ip := clientIP(c.Request)
-						p.security.SetSession(ip, u.UserName, "", 0)
+						p.security.SetSession(ip, u.UserName, "", 0, u.AccessProfile)
 						allrules := p.db.GetDNSSessionsForClient(ip)
 						for i := range allrules {
 							if allrules[i].ReasonCode != 0 {
@@ -307,12 +325,15 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		}
 	}
 	p.server.HTML(c, rt.serveTemplate, gin.H{
+		"UserName":       rt.sessionUser,
 		"next":           c.Query("next"),
 		"ip":             clientIP(c.Request),
 		"portal_address": portal_address,
 		"allow_register": rt.serveTemplate == "session_login" && p.config.settings.SelfRegEnabled,
 		"error":          err,
 		"message":        message,
+		"accessprofile":  rt.accessprofile,
+		"accessprofiles": rt.accessprofiles,
 	})
 	if rt.serveTemplate != "portal_session" || c.Request.URL.Path != "/logout" {
 		c.Abort()

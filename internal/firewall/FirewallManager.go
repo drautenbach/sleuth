@@ -4,11 +4,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/bits"
 	"net"
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
 	"sleuth/internal/log"
-	"sort"
 	"time"
 
 	"github.com/miekg/dns"
@@ -152,18 +152,43 @@ func OffsetFromIP4(IP string) uint32 {
 	if ipint > ipstart {
 		return ipint - ipstart
 	}
-	return 65536
+	return max_value
+}
+
+const max_value = 65535 //256*256
+func firstAvailable(nums []constants.ReverseDNS) (uint16, bool) {
+	var seen [(max_value + 1) / 64]uint64
+
+	// Mark numbers as seen
+	for _, n := range nums {
+		seen[n.DestIPOffset>>6] |= 1 << (n.DestIPOffset & 63)
+	}
+
+	for wordIdx, word := range seen {
+		inv := ^word
+
+		if inv != 0 {
+			bit := bits.TrailingZeros64(inv)
+			result := wordIdx*64 + bit
+
+			if result <= max_value {
+				return uint16(result), true
+			}
+		}
+	}
+
+	// All numbers used
+	return 0, false
 }
 
 func (m *FirewallManager) Allocate(session constants.DNSSession, if_ip string) error {
 	var err error
-	max_len := uint16(65535) //256*256
 
 	if session.DNSResponse.A != nil {
 		// check if IP is already allocated
 		if session.DNSResponse.A.AllocatedIP != "" {
 			t := OffsetFromIP4(session.DNSResponse.A.AllocatedIP)
-			if t < uint32(max_len) {
+			if t < uint32(max_value) {
 				rdns := m.db.GetReverseDNS(session.ClientIP, dns.TypeA, uint16(t))
 				if rdns != nil {
 					if rdns.Hostname == session.Hostname {
@@ -174,27 +199,10 @@ func (m *FirewallManager) Allocate(session constants.DNSSession, if_ip string) e
 			}
 		}
 
-		// Assume rules are sorted by DestIPOffset ascending
 		rules := m.db.GetReverseDNSByClientType(session.ClientIP, session.QType)
-		sort.Slice(rules, func(i, j int) bool {
-			return rules[i].DestIPOffset < rules[j].DestIPOffset
-		})
+		destIPOffset, found := firstAvailable(rules)
 
-		expected := uint16(1)
-		destIPOffset := uint16(0)
-
-		for _, rule := range rules {
-			if rule.DestIPOffset > expected {
-				destIPOffset = expected
-				break
-			}
-			expected = rule.DestIPOffset + 1
-		}
-		if destIPOffset == 0 && expected <= max_len {
-			destIPOffset = expected
-		}
-
-		if destIPOffset == 0 {
+		if !found {
 			return errors.New("no available IP offset")
 		} else {
 			destIP := IP4fromOffset(destIPOffset)
