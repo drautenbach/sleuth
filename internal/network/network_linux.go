@@ -7,6 +7,8 @@ import (
 	"bufio"
 	"os"
 	"strings"
+
+	"github.com/bytedance/gopkg/util/logger"
 )
 
 const (
@@ -29,6 +31,10 @@ func Table() ArpTable {
 
 	s := bufio.NewScanner(f)
 	s.Scan() // skip the field descriptions
+
+	if s.Err() != nil {
+		logger.Error(s.Err())
+	}
 
 	var table = make(ArpTable)
 

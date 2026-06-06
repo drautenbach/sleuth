@@ -50,7 +50,7 @@ func (s *DnsServer) queryCache(clientIP string, name string, qtype uint16) (*con
 func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.RR, cache *constants.DNSSession, ses security.SessionInfo, if_ip string, isLocal bool) []dns.RR {
 	ttl := uint32(32768)
 	cached := cache != nil
-	if upstream != nil && cache != nil {
+	if upstream != nil && cached {
 		a := make(map[string]constants.DNS_IP_Record)
 		aaaa := make(map[string]constants.DNS_IP_Record)
 		cache.DNSResponse.Raw = make([]string, 0)
@@ -243,8 +243,8 @@ func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip s
 			}
 		}
 
-		s.security.VerifyDomainAccess(source, name)
 		if len(arr) > 0 {
+			//s.security.VerifyDomainAccess(source)
 			return arr, nil
 		}
 
@@ -257,6 +257,9 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 	arr := make([]dns.RR, 0)
 
 	ses, _ := s.security.GetSessionInfo(source)
+	if ses.Reevaluate {
+		s.ReevaluateAccess(source)
+	}
 	cache, err := s.queryCache(source, name, qtype)
 	if err == nil && cache != nil {
 		if time.Until(cache.DNSExpiry) > 0 {
@@ -430,17 +433,22 @@ func (s DnsServer) Start() {
 
 }
 
-func (s *DnsServer) ReevaluateAccess(fwr *constants.DNSSession) error {
-	_, newReason := s.security.VerifyDomainAccess(fwr.ClientIP, fwr.Hostname)
-	if newReason != fwr.ReasonCode {
-		if s.fw.IsActive() && fwr.DNSResponse.A != nil {
-			return s.fw.UpdateIPv4(fwr, newReason)
+func (s *DnsServer) ReevaluateAccess(clientIP string) {
+	_, newReason := s.security.VerifyDomainAccess(clientIP)
+	allrules := s.db.GetDNSSessionsForClient(clientIP)
+	for i := range allrules {
+		//if allrules[i].ReasonCode == 0 {
+		if newReason != allrules[i].ReasonCode {
+			if s.fw.IsActive() && allrules[i].DNSResponse.A != nil {
+				s.fw.UpdateIPv4(&allrules[i], newReason)
+			}
+			allrules[i].ReasonCode = newReason
+			allrules[i].SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
+			s.db.UpdateDNSSession(&allrules[i])
 		}
-		fwr.ReasonCode = newReason
-		fwr.SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
-		return s.db.UpdateDNSSession(fwr)
+
+		//}
 	}
-	return nil
 }
 
 func (s *DnsServer) FlushCache(clientIP string) error {

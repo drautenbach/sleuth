@@ -76,6 +76,8 @@ func wcSystemInit(p *Portal) *wcSystem {
 			ip := c.Request.FormValue("IP")
 			err = p.db.DeleteSession(ip)
 			if err == nil {
+				//p.dns.ReevaluateAccess(ip)
+				p.fw.FlushSource(ip)
 				c.Redirect(http.StatusSeeOther, "/system/sessions")
 				return
 			}

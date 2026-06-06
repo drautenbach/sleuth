@@ -26,17 +26,23 @@ func main() {
 			Handler:  p.certManager.HTTPHandler(p.httpproxy.WAFHandler(p.server.router)),
 			ErrorLog: log.New(&filteredLogger{logger: log.Default()}, "", log.LstdFlags),
 		}
-		logger.Print("HTTPS server running on port 443")
-		logger.Error(httpsServer.ListenAndServeTLS("", "")) // certificates handled automatically
+		logger.Print("Starting HTTPS server running on port 443")
+		err := httpsServer.ListenAndServe()
+		logger.Printf("HTTP server exited: %v", err)
 	}()
 
 	go func() {
 		httpServer := &http.Server{
-			Addr:    ":80",
-			Handler: p.certManager.HTTPHandler(p.httpproxy.WAFHandler(p.server.router)),
+			Addr: ":80",
+			Handler: p.certManager.HTTPHandler(
+				p.httpproxy.WAFHandler(p.server.router),
+			),
 		}
-		logger.Print("HTTP server running on port 80")
-		logger.Error(httpServer.ListenAndServe())
+
+		logger.Print("Starting HTTP server on :80")
+
+		err := httpServer.ListenAndServe()
+		logger.Printf("HTTP server exited: %v", err)
 	}()
 
 	go p.dns.Start()

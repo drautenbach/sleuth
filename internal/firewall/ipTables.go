@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sleuth/internal/constants"
+	"sleuth/internal/log"
 	"strconv"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -97,36 +98,22 @@ func (m *ipTables) AddForwardRule(fwdrule *constants.FwdRule) error {
 	}*/
 
 	destIP, chain := getDestIP(fwdrule)
-	if chain == "PREROUTING" {
-		err := m.ipt.Append("nat", "PREROUTING", "-s", fwdrule.ClientIP, "-d", fwdrule.AllocatedIP, "-j", "DNAT", "--to-destination", destIP)
-		if err != nil {
-			fmt.Println(fmt.Errorf("Error appending PREROUTING DNAT rule %s -> %s -> %s, %v", fwdrule.HostName, fwdrule.AllocatedIP, destIP, err))
-			return err
-		} else {
-			fmt.Println(fmt.Printf("Created PREROUTING Rule %s -> %s -> %s", fwdrule.HostName, fwdrule.AllocatedIP, destIP))
-		}
 
-		m.ipt.AppendUnique("filter", "FORWARD", "-s", fwdrule.ClientIP, "-j", "ACCEPT")
-		m.ipt.AppendUnique("filter", "FORWARD", "-d", fwdrule.ClientIP, "-j", "ACCEPT")
-
+	if fwdrule.ClientIP == fwdrule.AllocatedIP {
+		log.Errorf("unexpected IP allocation %s", fwdrule.ClientIP)
 	} else {
-		err := m.ipt.Append("nat", "OUTPUT", "-s", fwdrule.ClientIP, "-d", fwdrule.AllocatedIP, "-j", "DNAT", "--to-destination", destIP)
+		err := m.ipt.Append("nat", chain, "-s", fwdrule.ClientIP, "-d", fwdrule.AllocatedIP, "-j", "DNAT", "--to-destination", destIP)
 		if err != nil {
-			fmt.Println(fmt.Errorf("Error appending OUTPUT DNAT rule %s -> %s -> %s, %v", fwdrule.HostName, fwdrule.AllocatedIP, destIP, err))
+			fmt.Println(fmt.Errorf("Error appending %s, DNAT rule %s -> %s -> %s, %v", chain, fwdrule.HostName, fwdrule.AllocatedIP, destIP, err))
 			return err
 		} else {
-			fmt.Println(fmt.Printf("Created OUTPUT Rule %s -> %s -> %s", fwdrule.HostName, fwdrule.AllocatedIP, destIP))
+			fmt.Println(fmt.Printf("Created %s Rule %s -> %s -> %s", chain, fwdrule.HostName, fwdrule.AllocatedIP, destIP))
+		}
+		if chain == "PREROUTING" {
+			m.ipt.AppendUnique("filter", "FORWARD", "-s", fwdrule.ClientIP, "-j", "ACCEPT")
+			m.ipt.AppendUnique("filter", "FORWARD", "-d", fwdrule.ClientIP, "-j", "ACCEPT")
 		}
 	}
-
-	/*err = m.ipt.Append("filter", "FORWARD", "-d", fwdrule.OrigIP, "-j", "ACCEPT")
-	if err != nil {
-		fmt.Println(fmt.Errorf("Error appending FORWARD rule for destination: %v", err))
-	}
-	err = m.ipt.Append("filter", "FORWARD", "-s", fwdrule.OrigIP, "-j", "ACCEPT")
-	if err != nil {
-		fmt.Println(fmt.Errorf("Error appending FORWARD rule for source: %v", err))
-	}*/
 
 	return nil
 }

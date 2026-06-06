@@ -212,25 +212,21 @@ func (m *FirewallManager) Allocate(session constants.DNSSession, if_ip string) e
 				DestIP:       destIP,
 				DestIPOffset: destIPOffset,
 			})
-			if err == nil {
-				if m.fw != nil {
-					m.fw.AddForwardRule(&constants.FwdRule{
-						ClientIP:    session.ClientIP,
-						InterfaceIP: if_ip,
-						HostName:    session.Hostname,
-						AllocatedIP: destIP,
-						TargetIP:    session.DNSResponse.A.IP,
-						ReasonCode:  session.ReasonCode,
-					})
-					session.DNSResponse.A.AllocatedIP = destIP
-				} else if session.ReasonCode == 0 {
-					session.DNSResponse.A.AllocatedIP = ""
-				} else {
-					session.DNSResponse.A.AllocatedIP = if_ip
-				}
-			} else {
-				session.DNSResponse.A.AllocatedIP = if_ip //"0.0.0.0"
+			if err == nil && m.fw != nil {
+				m.fw.AddForwardRule(&constants.FwdRule{
+					ClientIP:    session.ClientIP,
+					InterfaceIP: if_ip,
+					HostName:    session.Hostname,
+					AllocatedIP: destIP,
+					TargetIP:    session.DNSResponse.A.IP,
+					ReasonCode:  session.ReasonCode,
+				})
 			}
+			session.DNSResponse.A.AllocatedIP = destIP
+		}
+
+		if session.ReasonCode > 0 {
+			session.DNSResponse.A.AllocatedIP = if_ip
 		}
 	}
 

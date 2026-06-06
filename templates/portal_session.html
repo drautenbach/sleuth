@@ -9,7 +9,9 @@
 <body>
     
 
+    {{if ne .UserName ""}}
     You are logged in as {{.UserName}}
+    {{end}}
 
     <form method="POST">
         <a href="{{.portal_address}}">Admin Portal</a><br />

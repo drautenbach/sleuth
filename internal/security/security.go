@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sleuth/internal/constants"
 	"sleuth/internal/db"
+	"sleuth/internal/log"
 	"sleuth/internal/network"
 	"slices"
 	"strings"
@@ -49,26 +50,25 @@ func (s *Security) ClearSession(IP string) error {
 }
 
 func (s *Security) SetSession(IP string, Username string, MacAddress string, ReasonCode uint16, AccessProfile string) *db.Session {
-	session := s.db.GetSession(IP)
-	if session == nil {
-		session := &db.Session{
-			IP:            IP,
-			Username:      Username,
-			MacAddress:    MacAddress,
-			ReasonCode:    ReasonCode,
-			AccessProfile: AccessProfile,
-		}
-		s.db.CreateSession(session)
+	var err error
+	session := &db.Session{
+		IP:            IP,
+		Username:      Username,
+		MacAddress:    MacAddress,
+		ReasonCode:    ReasonCode,
+		AccessProfile: AccessProfile,
+	}
+	if s.db.GetSession(IP) == nil {
+		err = s.db.CreateSession(session)
 	} else {
-		s.db.DeleteSession(IP)
-		if Username != "" {
-			session.Username = Username
+		err = s.db.DeleteSession(IP)
+		if err == nil {
+			err = s.db.CreateSession(session)
 		}
-		if MacAddress != "" {
-			session.MacAddress = MacAddress
-		}
-		session.ReasonCode = ReasonCode
-		s.db.CreateSession(session)
+	}
+	if err != nil {
+		log.Error(err)
+		return nil
 	}
 	return session
 }
@@ -105,41 +105,61 @@ func (s *Security) SetAccessProfile(clientIP string, accessprofile string) error
 	return nil
 }
 
-func (s *Security) VerifyDomainAccess(clientIP string, hostname string) (bool, uint16) {
+func (s *Security) VerifyDomainAccess(clientIP string) (bool, uint16) {
 	var user *db.UserProfile
 	var macaddress string
-	var username = ""
+	//var username = ""
 	var accessprofile = ""
+	var role = s.settings.DefaultRole
 	reasoncode := constants.AccessBlockedNotAuthenticated
 
 	if session := s.db.GetSession(clientIP); session != nil {
-		if user = s.db.GetUser(session.Username); user != nil {
-			if user.Enabled {
-				return true, constants.AccessAllowed
+		if session.ReasonCode > 0 {
+			return false, session.ReasonCode
+		}
+		if session.Username != "" {
+			if user = s.db.GetUser(session.Username); user != nil {
+				if user.Enabled {
+					return true, constants.AccessAllowed
+				} else {
+					//username = user.UserName
+					reasoncode = constants.AccessBlockedUnauthorised
+					accessprofile = user.AccessProfile
+					return false, session.ReasonCode
+				}
+			}
+
+		}
+	} else if user, macaddress = s.ResolveUserByMacAddress(clientIP); user != nil {
+		if user.Enabled {
+			role = user.Role
+			accessprofile = user.AccessProfile
+			s.SetSession(clientIP, user.UserName, macaddress, 0, accessprofile)
+			return true, constants.AccessAllowed
+		} else {
+			//username = user.UserName
+			reasoncode = constants.AccessBlockedUnauthorised
+		}
+	}
+
+	r := s.db.GetRole(role)
+	if r != nil {
+		aps := GetActiveAccessProfiles(r)
+		if accessprofile == "" || slices.Index(aps, accessprofile) == -1 {
+			if len(aps) > 0 {
+				accessprofile = aps[0]
 			} else {
-				username = user.UserName
-				reasoncode = constants.AccessBlockedUnauthorised
-				accessprofile = user.AccessProfile
+				accessprofile = ""
 			}
 		}
-		return false, session.ReasonCode
 	} else {
-		if user, macaddress = s.ResolveUserByMacAddress(clientIP); user != nil {
-			if user.Enabled {
-				accessprofile = user.AccessProfile
-				s.SetSession(clientIP, user.UserName, macaddress, 0, accessprofile)
-				return true, constants.AccessAllowed
-			} else {
-				username = user.UserName
-				reasoncode = constants.AccessBlockedUnauthorised
-			}
-		}
+		accessprofile = ""
 	}
 
 	if s.settings.Mode == db.ModeBlock {
 		reasoncode = constants.AccessBlockedUnauthorised
 	}
-	s.SetSession(clientIP, username, macaddress, constants.AccessBlockedUnauthorised, accessprofile)
+	//s.SetSession(clientIP, username, macaddress, reasoncode, accessprofile)
 	return false, reasoncode
 
 }
@@ -152,48 +172,54 @@ type SessionInfo struct {
 	AccessProfile  *db.AccessProfile
 	DNS            *db.DNSConfiguration
 	RejectReason   uint16
+	Reevaluate     bool
 }
 
 func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 	var user *db.UserProfile
 	var macaddress string
-	var ses *db.Session
+	var role *db.Role
+	ses := s.db.GetSession(clientIP)
 
 	sessionInfo := SessionInfo{
 		ClientIP:     clientIP,
 		RejectReason: constants.AccessBlockedUnauthorised,
 	}
 
-	if ses = s.db.GetSession(clientIP); ses != nil {
-		if ses.Username != "" {
+	if ses != nil {
+		sessionInfo.RejectReason = ses.ReasonCode
+		if /*ses.MacAddress != "" &&*/ ses.Username != "" {
 			user = s.db.GetUser(ses.Username)
 		} else {
-			sessionInfo.RejectReason = constants.AccessBlockedNotAuthenticated
+			role = s.db.GetRole(s.settings.DefaultRole)
+		}
+		if ses.ReasonCode > 0 {
+			return sessionInfo, nil
 		}
 	} else {
 		if user, macaddress = s.ResolveUserByMacAddress(clientIP); user != nil && user.Enabled && user.Role != "" {
 			ses = s.SetSession(clientIP, user.UserName, macaddress, 0, user.AccessProfile)
+			sessionInfo.Reevaluate = true
 		}
 	}
 
-	var role *db.Role
-	if ses == nil || user == nil {
+	if ses == nil {
 		switch s.settings.Mode {
 		case db.ModeAllow:
 			role = s.db.GetRole(s.settings.DefaultRole)
 			if role != nil {
-				sessionInfo.Role = s.settings.DefaultRole
-				sessionInfo.DynamicRouting = role.DynamicRouting
+				//sessionInfo.Role = s.settings.DefaultRole
+				//sessionInfo.DynamicRouting = role.DynamicRouting
 				sessionInfo.RejectReason = constants.AccessAllowed
 			} else {
 				return sessionInfo, fmt.Errorf("Could not locate default role (%s)", s.settings.DefaultRole)
 			}
 		case db.ModeCaptive:
 			sessionInfo.RejectReason = constants.AccessBlockedNotAuthenticated
-			return sessionInfo, nil
+			//return sessionInfo, nil
 		case db.ModeBlock:
 			sessionInfo.RejectReason = constants.AccessBlockedUnauthorised
-			return sessionInfo, nil
+			//return sessionInfo, nil
 
 		}
 	}
@@ -205,45 +231,63 @@ func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 			return sessionInfo, fmt.Errorf("Could not locate role %s for user: %s", user.Role, user.UserName)
 		}
 	}
-	ap := GetActiveAccessProfiles(role)
-	if sessionInfo.AccessProfile == nil || slices.Index(ap, sessionInfo.AccessProfile.Name) == -1 {
-		if user != nil && user.AccessProfile != "" && slices.Index(ap, user.AccessProfile) > -1 {
-			sessionInfo.AccessProfile = s.db.GetAccessProfile(user.AccessProfile)
-		} else if len(ap) > 0 {
-			sessionInfo.AccessProfile = s.db.GetAccessProfile(ap[0])
-		} else {
-			sessionInfo.AccessProfile = nil
+	if role != nil {
+		ap := GetActiveAccessProfiles(role)
+		if ses != nil && ses.AccessProfile != "" && slices.Index(ap, ses.AccessProfile) > -1 {
+			sessionInfo.AccessProfile = s.db.GetAccessProfile(ses.AccessProfile)
+		} else if sessionInfo.AccessProfile == nil || slices.Index(ap, sessionInfo.AccessProfile.Name) == -1 {
+			if user != nil && user.AccessProfile != "" && slices.Index(ap, user.AccessProfile) > -1 {
+				sessionInfo.AccessProfile = s.db.GetAccessProfile(user.AccessProfile)
+			} else if len(ap) > 0 {
+				sessionInfo.AccessProfile = s.db.GetAccessProfile(ap[0])
+			} else {
+				sessionInfo.AccessProfile = nil
+			}
+		}
+		sessionInfo.Role = role.RoleName
+		sessionInfo.DynamicRouting = role.DynamicRouting
+
+		if role.DNSOverride && role.DNSAddress != "" {
+			sessionInfo.DNS = &db.DNSConfiguration{
+				Address: role.DNSAddress,
+				Type:    role.DNSMode,
+			}
+		} else if role.DNSConfiguration != "" {
+			if dns := s.db.GetDNSConfiguration(role.DNSConfiguration); dns != nil {
+				sessionInfo.DNS = dns
+			}
 		}
 	}
 
-	sessionInfo.Role = role.RoleName
-	sessionInfo.DynamicRouting = role.DynamicRouting
-	sessionInfo.RejectReason = constants.AccessAllowed
-	if role.DNSOverride && role.DNSAddress != "" {
-		sessionInfo.DNS = &db.DNSConfiguration{
-			Address: role.DNSAddress,
-			Type:    role.DNSMode,
-		}
-	} else if role.DNSConfiguration != "" {
-		if dns := s.db.GetDNSConfiguration(role.DNSConfiguration); dns != nil {
-			sessionInfo.DNS = dns
-		}
-	}
+	//sessionInfo.RejectReason = constants.AccessAllowed
+
 	if sessionInfo.DNS == nil {
 		sessionInfo.DNS = &db.DNSConfiguration{
 			Address: s.settings.FallbackDNS,
 			Type:    0,
 		}
 	}
-	if sessionInfo.DNS.Type > 0 && role.DNSPrependDeviceName && ses.MacAddress != "" {
-		if d := s.db.GetDevice(ses.MacAddress); d != nil {
-			if d.DeviceName != "" {
-				sessionInfo.DNS.Address = strings.ReplaceAll(d.DeviceName, " ", "--") + "-" + sessionInfo.DNS.Address
-			} else if d.HostName != "" {
-				sessionInfo.DNS.Address = strings.ReplaceAll(d.HostName, " ", "--") + "-" + sessionInfo.DNS.Address
+	if sessionInfo.DNS.Type > 0 {
+		if role.DNSPrependDeviceName {
+			if ses.MacAddress != "" {
+				if d := s.db.GetDevice(ses.MacAddress); d != nil {
+					if d.DeviceName != "" {
+						sessionInfo.DNS.Address = strings.ReplaceAll(d.DeviceName, " ", "--") + "-" + sessionInfo.DNS.Address
+					} else if d.HostName != "" {
+						sessionInfo.DNS.Address = strings.ReplaceAll(d.HostName, " ", "--") + "-" + sessionInfo.DNS.Address
+					}
+				}
 			}
 		}
 
+	}
+	if ses == nil {
+		ap := ""
+		if sessionInfo.AccessProfile != nil {
+			ap = sessionInfo.AccessProfile.Name
+		}
+		s.SetSession(sessionInfo.ClientIP, sessionInfo.Username, macaddress, sessionInfo.RejectReason, ap)
+		sessionInfo.Reevaluate = true
 	}
 	return sessionInfo, nil
 
