@@ -6,6 +6,7 @@ import (
 	"sleuth/internal/constants"
 
 	"github.com/gin-gonic/gin"
+	"github.com/miekg/dns"
 )
 
 type wcStats struct {
@@ -15,6 +16,7 @@ type wcStats struct {
 type trafficStat struct {
 	Since      string
 	Host       string
+	QType      string
 	IP         string
 	TempIP     string
 	Bytes      uint64
@@ -43,6 +45,7 @@ func (s *wcStats) GetTrafficStats(ip string) []trafficStat {
 			Bytes:      fr.BytesUsed,
 			Duration:   fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds),
 			ReasonCode: fmt.Sprintf("%d", fr.ReasonCode),
+			QType:      dns.TypeToString[fr.QType],
 		}
 		if fr.DNSResponse.A != nil {
 			neighbour.IP = fr.DNSResponse.A.IP

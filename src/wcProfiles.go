@@ -683,8 +683,8 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		var err error
 		var profile = &db.AccessProfile{
 			Name:           c.PostForm("Name"),
-			BlockedDomains: strings.Split(c.PostForm("BlockedDomains"), "\n"),
-			AllowedDomains: strings.Split(c.PostForm("AllowedDomains"), "\n"),
+			BlockedDomains: parsedomains(c.PostForm("BlockedDomains")),
+			AllowedDomains: parsedomains(c.PostForm("AllowedDomains")),
 		}
 
 		if c.PostForm("action") == "create" {
@@ -724,8 +724,8 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 	p.server.router.POST("/profiles/accessprofile/:name", func(c *gin.Context) {
 		var profile = p.db.GetAccessProfile(c.Param("name"))
 
-		profile.AllowedDomains = strings.Split(c.PostForm("AllowedDomains"), "\n")
-		profile.BlockedDomains = strings.Split(c.PostForm("BlockedDomains"), "\n")
+		profile.AllowedDomains = parsedomains(c.PostForm("AllowedDomains"))
+		profile.BlockedDomains = parsedomains(c.PostForm("BlockedDomains"))
 
 		var err error
 		if profile == nil {
@@ -781,4 +781,16 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 	})
 
 	return profiles
+}
+
+func parsedomains(domains string) []string {
+	dom := strings.Split(domains, "\n")
+	result := make([]string, 0)
+	for i := range dom {
+		d := strings.TrimRight(strings.TrimRight(strings.TrimLeft(dom[i], "."), "\r"), " ")
+		if d != "" {
+			result = append(result, d)
+		}
+	}
+	return result
 }

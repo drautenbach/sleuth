@@ -105,7 +105,7 @@ func (s *Security) SetAccessProfile(clientIP string, accessprofile string) error
 	return nil
 }
 
-func (s *Security) VerifyDomainAccess(clientIP string) (bool, uint16) {
+func (s *Security) VerifySessionAccess(clientIP string) (bool, uint16) {
 	var user *db.UserProfile
 	var macaddress string
 	//var username = ""
@@ -269,7 +269,7 @@ func (s *Security) GetSessionInfo(clientIP string) (SessionInfo, error) {
 	}
 	if sessionInfo.DNS.Type > 0 {
 		if role.DNSPrependDeviceName {
-			if ses.MacAddress != "" {
+			if ses != nil && ses.MacAddress != "" {
 				if d := s.db.GetDevice(ses.MacAddress); d != nil {
 					if d.DeviceName != "" {
 						sessionInfo.DNS.Address = strings.ReplaceAll(d.DeviceName, " ", "--") + "-" + sessionInfo.DNS.Address
@@ -397,4 +397,38 @@ func (s *Security) IsAllowedPortalAccess(Username string) bool {
 		}
 	}
 	return false
+}
+
+func VerifyDomainAccess(ses SessionInfo, dns *constants.DNSSession) {
+	if ses.RejectReason != constants.AccessBlockedNotAuthenticated && ses.RejectReason != constants.AccessBlockedUnauthorised {
+		if ses.AccessProfile == nil {
+			dns.ReasonCode = constants.AccessBlockedRule
+		} else {
+			if len(ses.AccessProfile.AllowedDomains) > 0 || len(ses.AccessProfile.BlockedDomains) > 0 {
+				name := strings.ToLower(strings.TrimRight(dns.Hostname, "."))
+				for i := range ses.AccessProfile.AllowedDomains {
+					if name == ses.AccessProfile.AllowedDomains[i] {
+						dns.ReasonCode = constants.AccessAllowed
+						return
+					} else if len(name) > len(ses.AccessProfile.AllowedDomains[i]) && name[len(ses.AccessProfile.AllowedDomains[i]):] == ses.AccessProfile.AllowedDomains[i] {
+						dns.ReasonCode = constants.AccessAllowed
+						return
+					}
+				}
+				for i := range ses.AccessProfile.BlockedDomains {
+					if name == ses.AccessProfile.BlockedDomains[i] {
+						dns.ReasonCode = constants.AccessBlockedRule
+						return
+					} else if len(name) > len(ses.AccessProfile.BlockedDomains[i]) {
+						test := name[len(name)-len(ses.AccessProfile.BlockedDomains[i])-1:]
+						if test == "."+ses.AccessProfile.BlockedDomains[i] {
+							dns.ReasonCode = constants.AccessBlockedRule
+							return
+						}
+					}
+				}
+			}
+			dns.ReasonCode = constants.AccessAllowed
+		}
+	}
 }

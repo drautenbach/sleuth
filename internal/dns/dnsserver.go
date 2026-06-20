@@ -152,7 +152,8 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 		cache.DNSExpiry = time.Now().Add(time.Duration(ttl) * time.Second)
 	}
 
-	if ses.RejectReason == 0 && upstream != nil {
+	security.VerifyDomainAccess(ses, cache)
+	if ses.RejectReason == 0 && cache.ReasonCode == 0 && upstream != nil {
 		s.fw.Allocate(*cache, if_ip)
 	}
 
@@ -171,7 +172,7 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 	}
 	if cache.DNSResponse.A != nil {
 		ip := cache.DNSResponse.A.IP
-		if ses.RejectReason > 0 {
+		if ses.RejectReason > 0 || cache.ReasonCode > 0 {
 			ip = if_ip
 		} else if ses.DynamicRouting && !cache.IsLocal && cache.DNSResponse.A.AllocatedIP != "" {
 			ip = cache.DNSResponse.A.AllocatedIP
@@ -244,7 +245,7 @@ func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip s
 		}
 
 		if len(arr) > 0 {
-			//s.security.VerifyDomainAccess(source)
+			//s.security.VerifySessionAccess(source)
 			return arr, nil
 		}
 
@@ -253,34 +254,7 @@ func (s *DnsServer) queryLocal(name string, qtype uint16, source string, if_ip s
 
 }
 
-func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if_ip string) ([]dns.RR, int) {
-	arr := make([]dns.RR, 0)
-
-	ses, _ := s.security.GetSessionInfo(source)
-	if ses.Reevaluate {
-		s.ReevaluateAccess(source)
-	}
-	cache, err := s.queryCache(source, name, qtype)
-	if err == nil && cache != nil {
-		if time.Until(cache.DNSExpiry) > 0 {
-			logQueryResult(source, name, qtype, "resolved from cache")
-			return s.processResponse(name, qtype, nil, cache, ses, if_ip, cache.IsLocal), dns.RcodeSuccess
-		}
-	}
-
-	arr, err = s.queryLocal(name, qtype, source, if_ip)
-	if err == nil {
-		logQueryResult(source, name, qtype, "resolved as local address")
-		//return arr, dns.RcodeSuccess
-		return s.processResponse(name, qtype, &arr, cache, ses, if_ip, true), dns.RcodeSuccess
-	}
-
-	/*arr, err = queryBlacklist(name, qtype)
-	if err == nil {
-		logQueryResult(source, name, qtype, "resolved as blacklisted name")
-		return arr, dns.RcodeNameError
-	}*/
-
+func (s *DnsServer) queryUpstream(name string, qtype uint16, source string, if_ip string, config *db.DNSConfiguration) ([]dns.RR, error) {
 	m1 := new(dns.Msg)
 	m1.Id = dns.Id()
 	m1.RecursionDesired = true
@@ -306,9 +280,9 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 		fallbackAddress = fmt.Sprintf("%s:53", fallbackAddress)
 	}
 	address := fallbackAddress
-	if ses.DNS != nil && ses.DNS.Address != "" {
-		address = ses.DNS.Address
-		switch ses.DNS.Type {
+	if config != nil && config.Address != "" {
+		address = config.Address
+		switch config.Type {
 		case 0:
 			if len(strings.Split(address, ":")) < 2 {
 				address = fmt.Sprintf("%s:53", address)
@@ -350,10 +324,41 @@ func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if
 	}
 
 	in, _, err := c.Exchange(m1, address)
+	return in.Answer, err
+}
 
+func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if_ip string) ([]dns.RR, int) {
+	arr := make([]dns.RR, 0)
+
+	ses, _ := s.security.GetSessionInfo(source)
+	if ses.Reevaluate {
+		s.ReevaluateAccess(source)
+	}
+	cache, err := s.queryCache(source, name, qtype)
+	if err == nil && cache != nil {
+		if time.Until(cache.DNSExpiry) > 0 {
+			logQueryResult(source, name, qtype, "resolved from cache")
+			return s.processResponse(name, qtype, nil, cache, ses, if_ip, cache.IsLocal), dns.RcodeSuccess
+		}
+	}
+
+	arr, err = s.queryLocal(name, qtype, source, if_ip)
+	if err == nil {
+		logQueryResult(source, name, qtype, "resolved as local address")
+		//return arr, dns.RcodeSuccess
+		return s.processResponse(name, qtype, &arr, cache, ses, if_ip, true), dns.RcodeSuccess
+	}
+
+	/*arr, err = queryBlacklist(name, qtype)
+	if err == nil {
+		logQueryResult(source, name, qtype, "resolved as blacklisted name")
+		return arr, dns.RcodeNameError
+	}*/
+
+	arr, err = s.queryUpstream(name, qtype, source, if_ip, ses.DNS)
 	if err == nil {
 		logQueryResult(source, name, qtype, "resolved via upstream")
-		return s.processResponse(name, qtype, &in.Answer, cache, ses, if_ip, false), dns.RcodeSuccess
+		return s.processResponse(name, qtype, &arr, cache, ses, if_ip, false), dns.RcodeSuccess
 	}
 
 	logQueryResult(source, name, qtype, "did not resolve")
@@ -434,7 +439,7 @@ func (s DnsServer) Start() {
 }
 
 func (s *DnsServer) ReevaluateAccess(clientIP string) {
-	_, newReason := s.security.VerifyDomainAccess(clientIP)
+	_, newReason := s.security.VerifySessionAccess(clientIP)
 	allrules := s.db.GetDNSSessionsForClient(clientIP)
 	for i := range allrules {
 		//if allrules[i].ReasonCode == 0 {

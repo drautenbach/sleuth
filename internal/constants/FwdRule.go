@@ -8,9 +8,7 @@ const (
 	AccessAllowed                 uint16 = 0
 	AccessBlockedNotAuthenticated uint16 = 1
 	AccessBlockedUnauthorised     uint16 = 2
-	AccessBlockedRuleSet          uint16 = 3
-	AccessBlockedTimeLimit        uint16 = 3
-	AccessBlockBandwidthLimit     uint16 = 4
+	AccessBlockedRule             uint16 = 3
 )
 
 type FwdRule struct {
