@@ -58,3 +58,8 @@ type ReverseDNS struct {
 	DestIPOffset uint16
 	Hostname     string
 }
+
+type CA struct {
+	Certificate []byte
+	Key         []byte
+}

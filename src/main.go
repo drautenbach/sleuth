@@ -1,9 +1,16 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"log"
+	"math/big"
 	"net/http"
+	"sleuth/internal/constants"
 	"sleuth/internal/db"
 	logger "sleuth/internal/log"
 	"strings"
@@ -21,13 +28,13 @@ func main() {
 		httpsServer := &http.Server{
 			Addr: ":443",
 			TLSConfig: &tls.Config{
-				GetCertificate: p.certManager.GetCertificate,
+				GetCertificate: p.httpproxy.CertificateHandler,
 			},
 			Handler:  p.certManager.HTTPHandler(p.httpproxy.WAFHandler(p.server.router)),
 			ErrorLog: log.New(&filteredLogger{logger: log.Default()}, "", log.LstdFlags),
 		}
 		logger.Print("Starting HTTPS server running on port 443")
-		err := httpsServer.ListenAndServe()
+		err := httpsServer.ListenAndServeTLS("", "")
 		logger.Printf("HTTP server exited: %v", err)
 	}()
 
@@ -50,6 +57,52 @@ func main() {
 }
 
 func initDefaults(p *Portal) {
+
+	if p.db.GetCA() == nil {
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+		if err == nil {
+			serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+			if err == nil {
+
+				template := &x509.Certificate{
+					SerialNumber: serial,
+					Subject: pkix.Name{
+						Organization: []string{"Sleuth CA"},
+						CommonName:   "Sleuth Root CA",
+					},
+
+					NotBefore: time.Now().Add(-time.Hour),
+					NotAfter:  time.Now().AddDate(100, 0, 0),
+
+					IsCA:                  true,
+					BasicConstraintsValid: true,
+
+					KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+				}
+
+				derBytes, err := x509.CreateCertificate(
+					rand.Reader,
+					template,
+					template, // self-signed
+					&priv.PublicKey,
+					priv,
+				)
+
+				if err == nil {
+					keyBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+					if err == nil {
+
+						p.db.SetCA(&constants.CA{
+							Certificate: derBytes,
+							Key:         keyBytes,
+						})
+					}
+				}
+			}
+		}
+	}
+
 	if len(p.db.GetDNSConfigurations()) == 0 {
 		p.db.CreateDNSConfiguration(&db.DNSConfiguration{
 			Name:    "NextDNS Default Profile (TLS)",

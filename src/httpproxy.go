@@ -1,7 +1,16 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"errors"
 	"io/fs"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +20,7 @@ import (
 	"sleuth/internal/log"
 	"strconv"
 	"strings"
+	"time"
 
 	coreruleset "github.com/corazawaf/coraza-coreruleset/v4"
 	"github.com/corazawaf/coraza/v3"
@@ -113,6 +123,97 @@ func (p *HttpProxy) ApplyConfiguration() error {
 	p.sites = sites
 
 	return err
+}
+
+func (p *HttpProxy) CertificateHandler(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	host := hello.ServerName
+	_, rp := p.sites[host]
+	if rp {
+		return p.portal.certManager.GetCertificate(hello)
+	}
+
+	ca := p.portal.db.GetCA()
+	if ca != nil {
+		caCert, err := x509.ParseCertificate(ca.Certificate)
+		if err != nil {
+			return nil, err
+		}
+
+		// ---- Generate leaf private key ----
+		leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+
+		keyAny, err := x509.ParsePKCS8PrivateKey(ca.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		// ---- Serial number ----
+		serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+		if err != nil {
+			return nil, err
+		}
+
+		// ---- Certificate template ----
+		template := &x509.Certificate{
+			SerialNumber: serial,
+			Subject: pkix.Name{
+				CommonName: host,
+			},
+
+			NotBefore: time.Now().Add(-time.Hour),
+			NotAfter:  time.Now().Add(24 * time.Hour),
+
+			KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+			ExtKeyUsage: []x509.ExtKeyUsage{
+				x509.ExtKeyUsageServerAuth,
+			},
+
+			DNSNames: []string{host},
+		}
+
+		// ---- Create cert ----
+		derBytes, err := x509.CreateCertificate(
+			rand.Reader,
+			template,
+			caCert,
+			&leafKey.PublicKey,
+			keyAny,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// ---- Encode leaf cert ----
+		certPEM := pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: derBytes,
+		})
+
+		// ---- Encode private key ----
+		keyBytes, err := x509.MarshalPKCS8PrivateKey(leafKey)
+		if err != nil {
+			return nil, err
+		}
+
+		keyPEM := pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: keyBytes,
+		})
+
+		// ---- Build tls.Certificate ----
+		cert, err := tls.X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			return nil, err
+		}
+
+		return &cert, nil
+	}
+
+	return nil, errors.New("Unable to generate certificate - no CA")
+
 }
 
 func (p *HttpProxy) WAFHandler(next http.Handler) http.Handler {

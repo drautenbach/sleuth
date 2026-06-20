@@ -72,6 +72,7 @@ func InitPortal() *Portal {
 	p.wc.Stats = *wcStatsInit(p)
 	p.wc.DNSConfig = *wcServicesInit(p)
 	p.server.router.GET("/logout", p.logout)
+	p.server.router.GET("/ca", p.ca)
 	p.httpproxy.ApplyConfiguration()
 
 	webShellInit(p)
@@ -96,6 +97,17 @@ func (p *Portal) logout(c *gin.Context) {
 	}
 }
 
+func (p *Portal) ca(c *gin.Context) {
+	ca := p.db.GetCA()
+	if ca == nil {
+		c.JSON(404, gin.H{
+			"error": "root ca no generated",
+		})
+		return
+	}
+	c.Data(http.StatusOK, "application/x-x509-ca-cert", ca.Certificate)
+}
+
 type requestType struct {
 	isAdminPortal   bool
 	sessionUser     string
@@ -112,9 +124,13 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 		isAdminPortal: true,
 	}
 	if c.Request.Method == http.MethodGet {
-		info, err := os.Stat("./www" + c.Request.URL.Path)
-		if info != nil && (os.IsExist(err) || !info.IsDir()) {
+		if c.Request.URL.Path == "/ca" {
 			rt.resourceRequest = true
+		} else {
+			info, err := os.Stat("./www" + c.Request.URL.Path)
+			if info != nil && (os.IsExist(err) || !info.IsDir()) {
+				rt.resourceRequest = true
+			}
 		}
 	}
 	ip := clientIP(c.Request)

@@ -33,6 +33,7 @@ func stringPtr(val string) *string {
 }
 
 func (re *DNSRulesEngine) InitDefaults() {
+
 	if len(re.db.GetDNSCategories()) == 0 && len(re.db.GetDNSRuleSets()) == 0 {
 		type categorySeed struct {
 			ID     string

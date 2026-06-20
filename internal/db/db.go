@@ -1039,3 +1039,13 @@ func (d *Db) UpdateWAFConfiguration(p *WAFConfiguration) error {
 func (d *Db) DeleteWAFConfiguration(profileid string) error {
 	return delete(d, fmt.Sprintf("WAFConfiguration:%s", profileid))
 }
+
+/***************** CA **************************/
+
+func (d *Db) GetCA() *constants.CA {
+	return get[constants.CA](d, "cert:ca")
+}
+
+func (d *Db) SetCA(cert *constants.CA) error {
+	return set(d, "cert:ca", cert)
+}
