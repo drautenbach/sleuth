@@ -225,9 +225,9 @@ func (m *FirewallManager) Allocate(session constants.DNSSession, if_ip string) e
 			session.DNSResponse.A.AllocatedIP = destIP
 		}
 
-		if session.ReasonCode > 0 {
+		/*if session.ReasonCode > 0 {
 			session.DNSResponse.A.AllocatedIP = if_ip
-		}
+		}*/
 	}
 
 	if session.DNSResponse.AAAA != nil {
@@ -306,7 +306,6 @@ func (m *FirewallManager) ReviewFwdRules() {
 		if now.After(rules[i].SessionExpiry) {
 			var err error
 			if m.fw != nil {
-				//err = m.fw.RemoveForwardRule(&rules[i])
 				if rules[i].DNSResponse.A != nil {
 					err = m.fw.RemoveForwardRule(&constants.FwdRule{
 						ClientIP:    rules[i].ClientIP,

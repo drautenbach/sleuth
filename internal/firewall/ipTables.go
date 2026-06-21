@@ -104,10 +104,10 @@ func (m *ipTables) AddForwardRule(fwdrule *constants.FwdRule) error {
 	} else {
 		err := m.ipt.Append("nat", chain, "-s", fwdrule.ClientIP, "-d", fwdrule.AllocatedIP, "-j", "DNAT", "--to-destination", destIP)
 		if err != nil {
-			fmt.Println(fmt.Errorf("Error appending %s, DNAT rule %s -> %s -> %s, %v", chain, fwdrule.HostName, fwdrule.AllocatedIP, destIP, err))
+			fmt.Printf("Error appending %s, DNAT rule %s -> %s -> %s, %v\n", chain, fwdrule.HostName, fwdrule.AllocatedIP, destIP, err)
 			return err
 		} else {
-			fmt.Println(fmt.Printf("Created %s Rule %s -> %s -> %s", chain, fwdrule.HostName, fwdrule.AllocatedIP, destIP))
+			fmt.Printf("Created %s Rule %s, %s: %s -> %s\n", chain, fwdrule.ClientIP, fwdrule.HostName, fwdrule.AllocatedIP, destIP)
 		}
 		if chain == "PREROUTING" {
 			m.ipt.AppendUnique("filter", "FORWARD", "-s", fwdrule.ClientIP, "-j", "ACCEPT")
@@ -127,10 +127,10 @@ func (m *ipTables) RemoveForwardRule(fwdrule *constants.FwdRule) error {
 	destIP, chain := getDestIP(fwdrule)
 	err := m.ipt.Delete("nat", chain, "-s", fwdrule.ClientIP, "-d", fwdrule.AllocatedIP, "-j", "DNAT", "--to-destination", destIP)
 	if err != nil {
-		fmt.Println(fmt.Errorf("Error deleting OUTPUT DNAT rule  %s -> %s -> %s: %v", fwdrule.HostName, fwdrule.AllocatedIP, destIP, err))
+		fmt.Printf("Error deleting %s rule %s -> %s -> %v\n", fwdrule.HostName, fwdrule.AllocatedIP, destIP, err)
 		return err
 	} else {
-		fmt.Println(fmt.Printf("Deleted OUTPUT Rule %s -> %s -> %s", fwdrule.HostName, fwdrule.AllocatedIP, destIP))
+		fmt.Printf("Deleted %s Rule %s, %s: %s -> %s\n", chain, fwdrule.ClientIP, fwdrule.HostName, fwdrule.AllocatedIP, destIP)
 	}
 
 	/*err = m.ipt.Delete("filter", "FORWARD", "-d", fwdrule.OrigIP, "-j", "ACCEPT")

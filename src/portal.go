@@ -110,6 +110,7 @@ func (p *Portal) ca(c *gin.Context) {
 
 type requestType struct {
 	isAdminPortal   bool
+	isSessionPage   bool
 	sessionUser     string
 	serveTemplate   string
 	host            string
@@ -117,11 +118,13 @@ type requestType struct {
 	blocked         bool
 	accessprofiles  []string
 	accessprofile   string
+	reasoncode      uint16
 }
 
 func (p *Portal) determineRequest(c *gin.Context) requestType {
 	var rt = &requestType{
 		isAdminPortal: true,
+		isSessionPage: false,
 	}
 	if c.Request.Method == http.MethodGet {
 		if c.Request.URL.Path == "/ca" {
@@ -143,36 +146,38 @@ func (p *Portal) determineRequest(c *gin.Context) requestType {
 			if fwr != nil {
 				ses, _ := p.security.GetSessionInfo(ip)
 				rt.sessionUser = ses.Username
+				rt.isSessionPage = host == "session" || host == "session."+p.config.settings.LocalDomain
 
-				if !fwr.IsLocal || (host == "session" || host == "session."+p.config.settings.LocalDomain) {
+				if !fwr.IsLocal || rt.isSessionPage {
 					if !rt.resourceRequest {
 						rt.isAdminPortal = false
-						if fwr.ReasonCode == constants.AccessBlockedUnauthorised {
-							rt.serveTemplate = "session_unauthorised"
-							rt.blocked = true
-						} else if fwr.ReasonCode == constants.AccessAllowed {
+						if ses.Role != "" {
+							if r := p.db.GetRole(ses.Role); r != nil {
+								rt.accessprofiles = security.GetActiveAccessProfiles(r)
+							}
+						}
+						if ses.AccessProfile != nil {
+							rt.accessprofile = ses.AccessProfile.Name
+						}
+
+						switch fwr.ReasonCode {
+						case constants.AccessAllowed:
 							if fwr.IsLocal {
 								rt.serveTemplate = "portal_session"
-								if ses.Role != "" {
-									if r := p.db.GetRole(ses.Role); r != nil {
-										rt.accessprofiles = security.GetActiveAccessProfiles(r)
-									}
-								}
-								if c.Request.Method == "POST" && c.Request.FormValue("AccessProfile") != "" {
-									if p.security.SetAccessProfile(ip, c.Request.FormValue("AccessProfile")) == nil {
-										ses, _ = p.security.GetSessionInfo(ip)
-									}
-								}
-								if ses.AccessProfile != nil {
-									rt.accessprofile = ses.AccessProfile.Name
-								}
 							} else {
 								rt.serveTemplate = "portal_valid"
 							}
-						} else if fwr.ReasonCode == constants.AccessBlockedNotAuthenticated && rt.sessionUser != "" {
-							p.dns.ReevaluateAccess(ip)
-						} else {
-							rt.serveTemplate = "session_login"
+						case constants.AccessBlockedNotAuthenticated:
+							if rt.sessionUser != "" {
+								p.dns.ReevaluateAccess(ip)
+							} else {
+								rt.serveTemplate = "session_login"
+							}
+						default:
+							rt.serveTemplate = "portal_session"
+							rt.blocked = true
+							rt.reasoncode = fwr.ReasonCode
+
 						}
 
 						c.Header("connection", "close")
@@ -210,7 +215,7 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 	message := ""
 	rt := p.determineRequest(c)
 
-	if !rt.blocked && c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
+	if c.Request.Method == http.MethodPost && c.Request.FormValue("sleuth_action") != "" {
 		var action = c.Request.FormValue("sleuth_action")
 		switch action {
 		case "reset_password":
@@ -272,6 +277,15 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 				}
 			}
 
+		case "change_profile":
+			if c.Request.FormValue("AccessProfile") != "" {
+				ip := clientIP(c.Request)
+				if p.security.SetAccessProfile(ip, c.Request.FormValue("AccessProfile")) == nil {
+					p.dns.ReevaluateAccess(ip)
+					c.Redirect(http.StatusSeeOther, c.Request.URL.Path)
+					return
+				}
+			}
 		case "login":
 			u := p.db.GetUser(c.Request.FormValue("username"))
 			if u != nil {
@@ -339,6 +353,8 @@ func (p *Portal) interceptHandler(c *gin.Context) {
 		"message":        message,
 		"accessprofile":  rt.accessprofile,
 		"accessprofiles": rt.accessprofiles,
+		"reasoncode":     rt.reasoncode,
+		"sessionpage":    rt.isSessionPage,
 	})
 	if rt.serveTemplate != "portal_session" || c.Request.URL.Path != "/logout" {
 		c.Abort()

@@ -733,6 +733,12 @@ func wcProfilesInit(p *Portal) *wcProfiles {
 		} else if c.PostForm("action") == "edit" {
 			err = p.db.UpdateAccessProfile(profile)
 			if err == nil {
+
+				sessions := p.db.GetSessions()
+				for i := range sessions {
+					p.dns.ReevaluateAccess(sessions[i].IP)
+				}
+
 				c.Redirect(http.StatusSeeOther, "/profiles/accessprofiles")
 				c.Abort()
 				return

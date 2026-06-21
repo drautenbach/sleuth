@@ -8,27 +8,43 @@
 </head>
 <body>
     
-
-    {{if ne .UserName ""}}
-    You are logged in as {{.UserName}}
-    {{end}}
-
     <form method="POST">
-        <a href="{{.portal_address}}">Admin Portal</a><br />
 
+      <p>
+      {{if ne .UserName ""}}
+        You are logged in as {{.UserName}} <br />
+      {{end}}
+
+      {{ if eq .reasoncode 1 }}
+        You are not authenticated
+      {{ else if eq .reasoncode 2 }}
+        Access denied, please contact your administrator.
+      {{ else if eq .reasoncode 3 }}
+        Access restricted due to rule violation, please contact your administrator
+      {{ end }}
+      
+      </p>
+
+        {{ if .sessionpage}}
          <div class="form-layout">
             <div class="form-group">
                 <label for="rolename">Access Profile</label>
-
-                <wa-select name="AccessProfile" value="{{.accessprofile}}" onchange="form.submit()">
+                <input type="hidden" id="sleuth_action" name="sleuth_action" />
+                <wa-select name="AccessProfile" value="{{.accessprofile}}" onchange="document.getElementsByName('sleuth_action')[0].value = 'change_profile'; form.submit()">
                   {{range .accessprofiles}}
                     <wa-option value="{{.}}">{{.}}</wa-option>
                   {{end}}
                 </wa-select>
             </div>
-          </div>
+          </div>      
+      {{ end }}
 
-          Download <a href="/ca">CA</a> cert<br />
+        <a href="{{.portal_address}}" target="_blank">Admin Portal</a><br />
+
+
+
+
+        Download <a href="/ca">CA</a> cert<br />
 
 
         <button type="submit" name="sleuth_action" value="logout">

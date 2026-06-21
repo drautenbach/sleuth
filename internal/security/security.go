@@ -399,36 +399,42 @@ func (s *Security) IsAllowedPortalAccess(Username string) bool {
 	return false
 }
 
-func VerifyDomainAccess(ses SessionInfo, dns *constants.DNSSession) {
-	if ses.RejectReason != constants.AccessBlockedNotAuthenticated && ses.RejectReason != constants.AccessBlockedUnauthorised {
-		if ses.AccessProfile == nil {
-			dns.ReasonCode = constants.AccessBlockedRule
-		} else {
-			if len(ses.AccessProfile.AllowedDomains) > 0 || len(ses.AccessProfile.BlockedDomains) > 0 {
-				name := strings.ToLower(strings.TrimRight(dns.Hostname, "."))
-				for i := range ses.AccessProfile.AllowedDomains {
-					if name == ses.AccessProfile.AllowedDomains[i] {
-						dns.ReasonCode = constants.AccessAllowed
-						return
-					} else if len(name) > len(ses.AccessProfile.AllowedDomains[i]) && name[len(ses.AccessProfile.AllowedDomains[i]):] == ses.AccessProfile.AllowedDomains[i] {
-						dns.ReasonCode = constants.AccessAllowed
-						return
+func VerifyDomainAccess(ses SessionInfo, dns *constants.DNSSession) uint16 {
+	if !dns.IsLocal {
+		if ses.RejectReason != constants.AccessBlockedNotAuthenticated && ses.RejectReason != constants.AccessBlockedUnauthorised {
+			if ses.AccessProfile == nil {
+				dns.ReasonCode = constants.AccessBlockedRule
+			} else {
+				if len(ses.AccessProfile.AllowedDomains) > 0 || len(ses.AccessProfile.BlockedDomains) > 0 {
+					name := strings.ToLower(strings.TrimRight(dns.Hostname, "."))
+					if len(ses.AccessProfile.AllowedDomains) > 0 {
+						for i := range ses.AccessProfile.AllowedDomains {
+							if name == ses.AccessProfile.AllowedDomains[i] {
+								return constants.AccessAllowed
+
+							} else if len(name) > len(ses.AccessProfile.AllowedDomains[i]) && name[len(ses.AccessProfile.AllowedDomains[i]):] == ses.AccessProfile.AllowedDomains[i] {
+								return constants.AccessAllowed
+
+							}
+						}
+						return constants.AccessBlockedRule
+
 					}
-				}
-				for i := range ses.AccessProfile.BlockedDomains {
-					if name == ses.AccessProfile.BlockedDomains[i] {
-						dns.ReasonCode = constants.AccessBlockedRule
-						return
-					} else if len(name) > len(ses.AccessProfile.BlockedDomains[i]) {
-						test := name[len(name)-len(ses.AccessProfile.BlockedDomains[i])-1:]
-						if test == "."+ses.AccessProfile.BlockedDomains[i] {
-							dns.ReasonCode = constants.AccessBlockedRule
-							return
+					for i := range ses.AccessProfile.BlockedDomains {
+						if name == ses.AccessProfile.BlockedDomains[i] {
+							return constants.AccessBlockedRule
+
+						} else if len(name) > len(ses.AccessProfile.BlockedDomains[i]) {
+							test := name[len(name)-len(ses.AccessProfile.BlockedDomains[i])-1:]
+							if test == "."+ses.AccessProfile.BlockedDomains[i] {
+								return constants.AccessBlockedRule
+							}
 						}
 					}
 				}
+				return constants.AccessAllowed
 			}
-			dns.ReasonCode = constants.AccessAllowed
 		}
 	}
+	return ses.RejectReason
 }

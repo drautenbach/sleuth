@@ -152,8 +152,8 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 		cache.DNSExpiry = time.Now().Add(time.Duration(ttl) * time.Second)
 	}
 
-	security.VerifyDomainAccess(ses, cache)
-	if ses.RejectReason == 0 && cache.ReasonCode == 0 && upstream != nil {
+	cache.ReasonCode = security.VerifyDomainAccess(ses, cache)
+	if /*ses.RejectReason == 0 && cache.ReasonCode == 0 &&*/ upstream != nil {
 		s.fw.Allocate(*cache, if_ip)
 	}
 
@@ -172,10 +172,12 @@ func (s *DnsServer) processResponse(name string, qtype uint16, upstream *[]dns.R
 	}
 	if cache.DNSResponse.A != nil {
 		ip := cache.DNSResponse.A.IP
-		if ses.RejectReason > 0 || cache.ReasonCode > 0 {
+		/*if ses.RejectReason > 0 || cache.ReasonCode > 0 {
 			ip = if_ip
-		} else if ses.DynamicRouting && !cache.IsLocal && cache.DNSResponse.A.AllocatedIP != "" {
+		} else */if ses.DynamicRouting && !cache.IsLocal && cache.DNSResponse.A.AllocatedIP != "" {
 			ip = cache.DNSResponse.A.AllocatedIP
+		} else {
+			ip = if_ip
 		}
 		resp = append(resp, &dns.A{
 			Hdr: dns.RR_Header{
@@ -324,7 +326,10 @@ func (s *DnsServer) queryUpstream(name string, qtype uint16, source string, if_i
 	}
 
 	in, _, err := c.Exchange(m1, address)
-	return in.Answer, err
+	if in != nil {
+		return in.Answer, err
+	}
+	return nil, err
 }
 
 func (s *DnsServer) processDnsQuery(name string, qtype uint16, source string, if_ip string) ([]dns.RR, int) {
@@ -439,20 +444,23 @@ func (s DnsServer) Start() {
 }
 
 func (s *DnsServer) ReevaluateAccess(clientIP string) {
-	_, newReason := s.security.VerifySessionAccess(clientIP)
-	allrules := s.db.GetDNSSessionsForClient(clientIP)
-	for i := range allrules {
-		//if allrules[i].ReasonCode == 0 {
-		if newReason != allrules[i].ReasonCode {
-			if s.fw.IsActive() && allrules[i].DNSResponse.A != nil {
-				s.fw.UpdateIPv4(&allrules[i], newReason)
+	//_, newReason := s.security.VerifySessionAccess(clientIP)
+	ses, err := s.security.GetSessionInfo(clientIP)
+	if err == nil {
+		allrules := s.db.GetDNSSessionsForClient(clientIP)
+		for i := range allrules {
+			//if allrules[i].ReasonCode == 0 {
+			newReason := security.VerifyDomainAccess(ses, &allrules[i])
+			if newReason != allrules[i].ReasonCode {
+				if s.fw.IsActive() && allrules[i].DNSResponse.A != nil {
+					s.fw.UpdateIPv4(&allrules[i], newReason)
+				}
+				allrules[i].ReasonCode = newReason
+				allrules[i].SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
+				s.db.UpdateDNSSession(&allrules[i])
 			}
-			allrules[i].ReasonCode = newReason
-			allrules[i].SessionExpiry = time.Now().Add(time.Duration(330) * time.Second)
-			s.db.UpdateDNSSession(&allrules[i])
+			//}
 		}
-
-		//}
 	}
 }
 
